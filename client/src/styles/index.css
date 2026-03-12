@@ -1,0 +1,62 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=Courier+Prime:wght@400;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+
+  --color-void:    #020208;
+  --color-hull:    #0a0a12;
+  --color-deck:    #0f0f1a;
+  --color-raised:  #141420;
+
+  --color-primary:       #6366f1;
+  --color-primary-light: #818cf8;
+  --color-primary-dark:  #4f46e5;
+  --color-primary-glow:  rgba(99,102,241,0.15);
+
+  --color-signal:        #06b6d4;
+  --color-signal-muted:  rgba(6,182,212,0.1);
+  --color-online:  #10b981;
+  --color-alert:   #f43f5e;
+  --color-caution: #f59e0b;
+  --color-xp:      #fbbf24;
+
+  --color-text-primary:   #f8fafc;
+  --color-text-secondary: #94a3b8;
+  --color-text-muted:     #334155;
+  --color-text-dim:       #1e293b;
+
+  --color-border:        rgba(255,255,255,0.06);
+  --color-border-active: rgba(99,102,241,0.4);
+  --color-border-signal: rgba(6,182,212,0.3);
+
+  --font-display: 'Plus Jakarta Sans', sans-serif;
+  --font-sans:    'DM Sans', sans-serif;
+  --font-mono:    'JetBrains Mono', monospace;
+  
+  --shadow-panel:   0 0 0 1px rgba(255,255,255,0.06), 0 16px 48px rgba(0,0,0,0.6);
+  --shadow-primary: 0 0 32px rgba(99,102,241,0.25);
+  --shadow-signal:  0 0 32px rgba(6,182,212,0.2);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background: #020208;
+  color: #f8fafc;
+  font-family: 'Inter', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: #020208; }
+::-webkit-scrollbar-thumb { background: #0f0f1a; border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: #141420; }
+
+::selection { background: rgba(99,102,241,0.3); color: #f8fafc; }
