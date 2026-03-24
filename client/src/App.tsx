@@ -1,13 +1,14 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { Show, RedirectToSignIn } from '@clerk/react'
+import { useAuth } from '@clerk/react'
+import { useEffect } from 'react'
+import { setAuthToken, setGetTokenFn } from '@/services/api'
 
-import LandingPage from '@/pages/LandingPage'
+import Landing from '@/pages/LandingPage'
 import Auth from '@/pages/Auth'
 import Dashboard from '@/pages/Dashboard'
 import Attempt from '@/pages/Attempt'
 import Profile from '@/pages/Profile'
-
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -18,29 +19,53 @@ const queryClient = new QueryClient({
   },
 })
 
-
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  return (
-    <>
-      <Show when="signed-in">
-        {children}
-      </Show>
-      <Show when="signed-out">
-        <RedirectToSignIn />
-      </Show>
-    </>
-  )
+  const { isLoaded, isSignedIn } = useAuth()
+
+  if (!isLoaded) return null
+  if (!isSignedIn) return <Navigate to="/auth" replace />
+  return <>{children}</>
 }
 
 export default function App() {
+  const { getToken, isLoaded, isSignedIn } = useAuth()
+
+  // Set up token provider so axios can fetch fresh tokens
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) {
+      setGetTokenFn(null)
+      setAuthToken(null)
+      return
+    }
+
+    // Provide the getToken function to axios interceptor
+    setGetTokenFn(async () => {
+      try {
+        const token = await getToken()
+        return token
+      } catch (err) {
+        return null
+      }
+    })
+
+    // Also set initial token
+    getToken()
+      .then(token => {
+        if (token) setAuthToken(token)
+      })
+      .catch(() => {})
+  }, [isLoaded, isSignedIn])
+
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Routes>
 
-          <Route path="/"     element={<LandingPage />} />
+          {/* Public */}
+          <Route path="/" element={<Landing />} />
           <Route path="/auth" element={<Auth />} />
 
+          {/* Protected */}
           <Route
             path="/dashboard"
             element={<ProtectedRoute><Dashboard /></ProtectedRoute>}

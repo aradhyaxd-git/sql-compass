@@ -3,11 +3,11 @@ import type { HintResponse } from '@/types/query.types'
 
 const hintService = {
   getHint: async (assignmentId: string, currentQuery: string): Promise<string> => {
-    const { data } = await api.post<HintResponse>('/api/hints', {
+    const { data } = await api.post<{ success: boolean; data: HintResponse }>('/api/hints', {
       assignmentId,
       currentQuery,
     })
-    return data.hint
+    return data.data.hint  
   },
 }
 

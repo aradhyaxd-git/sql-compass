@@ -1,29 +1,29 @@
 import { useState } from 'react'
 import { useAuth } from '@clerk/react'
-import { setAuthToken } from '@/services/api'
 import queryService from '@/services/query.service'
 import type { QueryState, QueryError } from '@/types/query.types'
 
 export function useQueryExecution(assignmentId: string) {
-  const { getToken } = useAuth()
+  const { isLoaded, isSignedIn } = useAuth()
   const [queryState, setQueryState] = useState<QueryState>({ status: 'idle' })
 
   const execute = async (sql: string) => {
     if (!sql.trim()) return
+    
+    if (!isLoaded || !isSignedIn) {
+      setQueryState({ status: 'error', error: { message: 'Not authenticated. Please sign in.' } })
+      return
+    }
 
     setQueryState({ status: 'loading' })
 
     try {
-      const token = await getToken()
-      setAuthToken(token)
       const result = await queryService.execute(assignmentId, sql)
       setQueryState({ status: 'success', data: result })
     } catch (err: unknown) {
-      const error = (err as { response?: { data?: QueryError } }).response?.data
-      setQueryState({
-        status: 'error',
-        error: error ?? { message: 'Something went wrong. Please try again.' },
-      })
+      const axiosError = err as { response?: { data?: { message?: string } }; message?: string }
+      const message = axiosError.response?.data?.message ?? axiosError.message ?? 'Something went wrong. Please try again.'
+      setQueryState({ status: 'error', error: { message } })
     }
   }
 

@@ -2,8 +2,10 @@ import { useState } from 'react'
 import { useUser } from '@clerk/react'
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
+import { Compass } from 'lucide-react'
 import { useAssignments } from '@/hooks/useAssignments'
 import Navbar from '@/components/layout/Navbar'
+import Footer from '@/components/layout/Footer'
 import type { Difficulty } from '@/types/assignment.types'
 
 
@@ -38,7 +40,7 @@ function MissionCard({ assignment, index }: { assignment: any; index: number }) 
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay: index * 0.05, ease: 'easeOut' }}
     >
-      <Link to={`/attempt/${assignment.id}`} style={{ textDecoration: 'none', display: 'block' }}>
+      <Link to={`/attempt/${assignment._id}`} style={{ textDecoration: 'none', display: 'block' }}>
         <motion.div
           whileHover={{ y: -2, borderColor: 'rgba(99,102,241,0.3)' }}
           style={{
@@ -197,7 +199,7 @@ export default function Dashboard() {
   return (
     <>
       <Navbar />
-      <main style={{ minHeight: '100vh', background: '#020208', paddingTop: 52 }}>
+      <main style={{ minHeight: '100vh', background: '#020208', paddingTop: 52, display: 'flex', flexDirection: 'column' }}>
 
         <div style={{
           borderBottom: '1px solid rgba(255,255,255,0.05)',
@@ -232,7 +234,10 @@ export default function Dashboard() {
                   SQL RANK
                 </div>
                 <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontWeight: 700, fontSize: 16, color: '#818cf8' }}>
-                  🧭 Explorer
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <Compass size={14} />
+                    Explorer
+                  </span>
                 </div>
               </div>
             </div>
@@ -285,6 +290,7 @@ export default function Dashboard() {
         </div>
 
       </main>
+      <Footer />
     </>
   )
 }

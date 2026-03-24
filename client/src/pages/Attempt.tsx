@@ -9,6 +9,7 @@ import Navbar from '@/components/layout/Navbar'
 import SQLEditor from '@/components/editor/SQLEditor'
 import ResultsTable from '@/components/editor/ResultsTable'
 import HintPanel from '@/components/editor/HintPanel'
+import SuccessBanner from '@/components/editor/SuccessBanner'
 import SchemaViewer from '@/components/assignment/SchemaViewer'
 import type { Difficulty } from '@/types/assignment.types'
 
@@ -241,6 +242,11 @@ export default function Attempt() {
           </div>
 
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            {queryState.status === 'success' && (
+              <div style={{ padding: '12px 16px', borderBottom: `1px solid ${D.border}`, flexShrink: 0 }}>
+                <SuccessBanner rowCount={queryState.data.rowCount} duration={queryState.data.duration} />
+              </div>
+            )}
             <div style={{ flex: 1, overflow: 'hidden', borderBottom: `1px solid ${D.border}` }}>
               <SQLEditor value={sql} onChange={handleSqlChange} onRun={() => execute(sql)} />
             </div>

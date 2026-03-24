@@ -1,22 +1,24 @@
 import { useState } from 'react'
 import { useAuth } from '@clerk/react'
-import { setAuthToken } from '@/services/api'
 import hintService from '@/services/hint.service'
 
 export function useHint(assignmentId: string) {
-  const { getToken } = useAuth()
+  const { isLoaded, isSignedIn } = useAuth()
   const [hint, setHint] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
   const requestHint = async (currentQuery: string) => {
     if (isLoading) return
+    
+    if (!isLoaded || !isSignedIn) {
+      setHint('Not authenticated. Please sign in.')
+      return
+    }
 
     setIsLoading(true)
     setHint(null)
 
     try {
-      const token = await getToken()
-      setAuthToken(token)
       const result = await hintService.getHint(assignmentId, currentQuery)
       setHint(result)
     } catch {

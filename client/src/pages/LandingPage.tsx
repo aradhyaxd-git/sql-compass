@@ -8,6 +8,7 @@ import {
   useTransform,
 } from "framer-motion";
 import { Show } from "@clerk/react";
+import Footer from "@/components/layout/Footer";
 
 const C = {
   void: "#01010a",
@@ -2229,32 +2230,7 @@ export default function Landing() {
       <RanksSection />
       <SocialProofSection />
       <CTASection />
-      <footer
-        style={{
-          borderTop: `1px solid ${C.border}`,
-          padding: "22px 48px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <Pulse />
-          <span
-            style={{
-              fontFamily: F.ui,
-              fontSize: 10,
-              color: C.t4,
-              letterSpacing: "0.08em",
-            }}
-          >
-            ALL SYSTEMS OPERATIONAL
-          </span>
-        </div>
-        <span style={{ fontFamily: F.ui, fontSize: 10, color: C.t4 }}>
-          © {new Date().getFullYear()} SQL COMPASS
-        </span>
-      </footer>
+      <Footer />
     </div>
   );
 }

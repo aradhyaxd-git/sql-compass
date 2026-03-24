@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '@clerk/react'
-import { setAuthToken } from '@/services/api'
 import assignmentService from '@/services/assignment.service'
 
 export const assignmentKeys = {
@@ -10,45 +9,34 @@ export const assignmentKeys = {
 }
 
 export function useAssignments() {
-  const { getToken } = useAuth()
-
+  const { isLoaded, isSignedIn } = useAuth()
+  
   return useQuery({
     queryKey: assignmentKeys.all,
-    queryFn: async () => {
-      const token = await getToken()
-      setAuthToken(token)
-      return assignmentService.getAll()
-    },
+    queryFn: assignmentService.getAll,
+    enabled: isLoaded && isSignedIn,
     staleTime: 5 * 60 * 1000,
   })
 }
 
 export function useAssignment(id: string) {
-  const { getToken } = useAuth()
-
+  const { isLoaded, isSignedIn } = useAuth()
+  
   return useQuery({
     queryKey: assignmentKeys.detail(id),
-    queryFn: async () => {
-      const token = await getToken()
-      setAuthToken(token)
-      return assignmentService.getById(id)
-    },
-    enabled: Boolean(id),
+    queryFn: () => assignmentService.getById(id),
+    enabled: Boolean(id) && isLoaded && isSignedIn,
     staleTime: 5 * 60 * 1000,
   })
 }
 
 export function useAssignmentSchema(id: string) {
-  const { getToken } = useAuth()
-
+  const { isLoaded, isSignedIn } = useAuth()
+  
   return useQuery({
     queryKey: assignmentKeys.schema(id),
-    queryFn: async () => {
-      const token = await getToken()
-      setAuthToken(token)
-      return assignmentService.getSchema(id)
-    },
-    enabled: Boolean(id),
+    queryFn: () => assignmentService.getSchema(id),
+    enabled: Boolean(id) && isLoaded && isSignedIn,
     staleTime: 10 * 60 * 1000,
   })
 }
