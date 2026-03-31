@@ -1,3 +1,7 @@
 node_modules
 dist
 .env
+API_REFERENCE.md
+DOCUMENTATION_INDEDX.md
+INTERVIEW_GUIDE.md
+ARCHITECTURE.md
