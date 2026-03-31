@@ -59,4 +59,38 @@ body {
 ::-webkit-scrollbar-thumb { background: #0f0f1a; border-radius: 999px; }
 ::-webkit-scrollbar-thumb:hover { background: #141420; }
 
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: #020208; }
+::-webkit-scrollbar-thumb { background: #0f0f1a; border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: #141420; }
+
 ::selection { background: rgba(99,102,241,0.3); color: #f8fafc; }
+
+/* React Resizable Panels */
+[data-panel-group] {
+  background: #020208;
+}
+
+[data-panel] {
+  background: #090914;
+  overflow: hidden;
+}
+
+[data-panel-resize-handle] {
+  background: rgba(255, 255, 255, 0.06);
+  will-change: background;
+  transition: background 0.15s ease;
+}
+
+[data-panel-resize-handle]:hover {
+  background: rgba(99, 102, 241, 0.15);
+}
+
+[data-panel-resize-handle-active] {
+  background: rgba(99, 102, 241, 0.25);
+}
+
+[data-panel-resize-handle][data-panel-resize-handle-enabled]:hover::after,
+[data-panel-resize-handle][data-panel-resize-handle-enabled]:active::after {
+  opacity: 1;
+}
