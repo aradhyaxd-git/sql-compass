@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '@clerk/react'
 import queryService from '@/services/query.service'
-import type { QueryState, QueryError } from '@/types/query.types'
+import type { QueryState } from '@/types/query.types'
 
 export function useQueryExecution(assignmentId: string) {
   const { isLoaded, isSignedIn } = useAuth()

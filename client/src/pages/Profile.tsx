@@ -40,7 +40,7 @@ export default function Profile() {
   const { signOut } = useClerk()
   const navigate = useNavigate()
   const { data: stats, isLoading: statsLoading } = useUserStats()
-  const { data: attempts, isLoading: attemptsLoading } = useAttemptHistory()
+  const { data: attempts } = useAttemptHistory()
 
   const handleSignOut = async () => {
     await signOut()

@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { cn } from '@/lib/cn'   
 import { useAssignment, useAssignmentSchema } from '@/hooks/useAssignments'
 import { useQueryExecution } from '@/hooks/useQueryExecution'
 import { useHint } from '@/hooks/useHints'
@@ -96,7 +95,7 @@ export default function Attempt() {
   const { data: assignment, isLoading: assignmentLoading } = useAssignment(id!)
   const { data: schema, isLoading: schemaLoading } = useAssignmentSchema(id!)
   const { queryState, execute, reset, isLoading: queryLoading } = useQueryExecution(id!)
-  const { hint, isLoading: hintLoading, requestHint, clearHint } = useHint(id!)
+  const { hintData, hint, isLoading: hintLoading, requestHint, clearHint } = useHint(id!)
   const [sql, setSql] = useState('')
   const [leftTab, setLeftTab] = useState<LeftTab>('question')
 
@@ -244,7 +243,12 @@ export default function Attempt() {
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             {queryState.status === 'success' && (
               <div style={{ padding: '12px 16px', borderBottom: `1px solid ${D.border}`, flexShrink: 0 }}>
-                <SuccessBanner rowCount={queryState.data.rowCount} duration={queryState.data.duration} />
+                <SuccessBanner
+                  rowCount={queryState.data.rowCount}
+                  duration={queryState.data.duration}
+                  verdict={queryState.data.verdict}
+                  xpEarned={queryState.data.xpEarned}
+                />
               </div>
             )}
             <div style={{ flex: 1, overflow: 'hidden', borderBottom: `1px solid ${D.border}` }}>
@@ -253,7 +257,13 @@ export default function Attempt() {
             <div style={{ height: 200, borderBottom: `1px solid ${D.border}`, overflow: 'hidden' }}>
               <ResultsTable queryState={queryState} />
             </div>
-            <HintPanel hint={hint} isLoading={hintLoading} onRequest={() => requestHint(sql)} onClear={clearHint} />
+            <HintPanel
+              hintData={hintData}
+              hint={hint}
+              isLoading={hintLoading}
+              onRequest={() => requestHint(sql)}
+              onClear={clearHint}
+            />
           </div>
         </div>
       </div>
