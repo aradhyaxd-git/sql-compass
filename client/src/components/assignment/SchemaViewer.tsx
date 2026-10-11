@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { cn } from '@/lib/cn'
 import Spinner from '@/components/ui/Spinner'
 import type { AssignmentSchema } from '@/types/assignment.types'
 

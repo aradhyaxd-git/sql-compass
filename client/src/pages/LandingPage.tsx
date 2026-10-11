@@ -1,11 +1,10 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   motion,
   useInView,
   useMotionValue,
   useSpring,
-  useTransform,
 } from "framer-motion";
 import { Show } from "@clerk/react";
 import Footer from "@/components/layout/Footer";
@@ -36,8 +35,6 @@ const F = {
   sql: "'Courier Prime', 'Courier New', monospace",
   body: "'DM Sans', sans-serif",
 };
-
-const Fmono = F.ui;
 
 const Icon = {
   Terminal: () => (
