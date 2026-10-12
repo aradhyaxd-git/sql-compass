@@ -1,4 +1,4 @@
-import rateLimit from 'express-rate-limit'
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit'
 
 const rateLimitResponse = (message: string) => ({
   success: false,
@@ -18,13 +18,15 @@ export const queryLimiter = rateLimit({
   max: 20,
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: (req) => req.userId || ipKeyGenerator(req.ip || ''),
   message: rateLimitResponse('Query execution limit reached. Wait a few minutes before running more queries.'),
 })
 
 export const hintLimiter = rateLimit({
-  windowMs: 10*60*1000,  
+  windowMs: 10 * 60 * 1000,
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: (req) => req.userId || ipKeyGenerator(req.ip || ''),
   message: rateLimitResponse('Hint limit reached. Take a moment to work through the problem, then try again.'),
 })
