@@ -6,6 +6,9 @@ export interface IAttempt extends Document {
   assignmentTitle: string // denormalized for quick profile display
   query: string // the SQL the user ran
   status: 'success' | 'error'
+  correct: boolean
+  verdictReason?: string
+  diffSummary?: Record<string, unknown>
   rowCount: number
   errorMessage?: string
   xpEarned: number
@@ -38,6 +41,17 @@ const attemptSchema = new Schema<IAttempt>(
       required: true,
       enum: ['success', 'error'],
     },
+    correct: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    verdictReason: {
+      type: String,
+    },
+    diffSummary: {
+      type: Schema.Types.Mixed,
+    },
     rowCount: {
       type: Number,
       default: 0,
@@ -58,5 +72,5 @@ const attemptSchema = new Schema<IAttempt>(
 )
 
 
-attemptSchema.index({ userId: 1, assignmentId: 1 })
+attemptSchema.index({ userId: 1, assignmentId: 1, correct: 1 })
 export default mongoose.model<IAttempt>('Attempt', attemptSchema)

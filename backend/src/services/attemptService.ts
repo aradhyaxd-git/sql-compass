@@ -8,23 +8,41 @@ interface SaveAttemptParams {
   assignmentTitle: string
   query: string
   status: 'success' | 'error'
+  correct?: boolean
+  verdictReason?: string
+  diffSummary?: Record<string, unknown>
   rowCount: number
   errorMessage?: string
 }
 
-export const saveAttempt = async (params: SaveAttemptParams): Promise<void> => {
-  const xpEarned = params.status === 'success' ? XP_PER_SUCCESS : 0
+export const saveAttempt = async (params: SaveAttemptParams): Promise<{ xpEarned: number }> => {
+  let xpEarned = 0
+
+  if (params.correct) {
+    const alreadySolved = await Attempt.exists({
+      userId: params.userId,
+      assignmentId: params.assignmentId,
+      correct: true,
+    })
+
+    if (!alreadySolved) {
+      xpEarned = XP_PER_SUCCESS
+    }
+  }
 
   await Attempt.create({
     ...params,
+    correct: params.correct ?? false,
     xpEarned,
     executedAt: new Date(),
   })
+
+  return { xpEarned }
 }
 
 export const getUserStats = async (userId: string) => {
   const [missionsCompleted, totalAttempts, xpResult] = await Promise.all([
-    Attempt.distinct('assignmentId', { userId, status: 'success' }),
+    Attempt.distinct('assignmentId', { userId, correct: true }),
     Attempt.countDocuments({ userId }),
     Attempt.aggregate([
       { $match: { userId } },
