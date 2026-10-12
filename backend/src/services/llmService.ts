@@ -1,14 +1,5 @@
-import { GoogleGenerativeAI } from '@google/generative-ai'
-import dotenv from 'dotenv'
-
-dotenv.config()
-
-if (!process.env.LLM_API_KEY) {
-  throw new Error('LLM_API_KEY is not set in environment variables')
-}
-
-const genAI = new GoogleGenerativeAI(process.env.LLM_API_KEY)
-const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
+import { getModel } from '../graphs/model.js'
+import { logger } from '../utils/logger.js'
 
 export const generateHint = async (
   questionDescription: string,
@@ -39,11 +30,16 @@ STRICT RULES:
 - Return only the hint text — no preamble, no "Sure!", no "Here's a hint:"`
 
   try {
-    const result = await model.generateContent(prompt)
-    const text = result.response.text().trim()
+    const model = getModel('generate')
+    const response = await model.invoke(prompt)
+    const text = typeof response.content === 'string' ? response.content.trim() : ''
     return text
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
+    logger.error('Fallback LLM hint generation failed', {
+      event: 'fallback_hint_generation_failure',
+      error: msg,
+    })
     throw new Error(`LLM hint generation failed: ${msg}`)
   }
 }

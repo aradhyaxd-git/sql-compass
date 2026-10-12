@@ -52,3 +52,15 @@ export const getSchemaForTables = async (
     client.release()
   }
 }
+
+export const formatSchemaTextForPrompt = async (tableNames: string[]): Promise<string> => {
+  const schemas = await getSchemaForTables(tableNames)
+  return schemas
+    .map((table) => {
+      const colList = table.columns
+        .map((c) => `  ${c.name} (${c.type}${c.nullable ? ', nullable' : ''})`)
+        .join('\n')
+      return `TABLE ${table.tableName}:\n${colList}`
+    })
+    .join('\n\n')
+}
