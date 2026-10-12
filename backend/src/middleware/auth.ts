@@ -32,3 +32,33 @@ export const requireAuth = async (
     res.status(401).json({ success: false, message: 'Invalid or expired token' })
   }
 }
+
+export const optionalAuth = async (
+  req: Request,
+  _res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const authHeader = req.headers.authorization
+
+  const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.split(' ')[1] : null
+  const sessionCookieMatch = req.headers.cookie?.match(/(?:^|;\s*)__session=([^;]+)/)
+  const cookieToken = sessionCookieMatch ? decodeURIComponent(sessionCookieMatch[1]) : null
+  const token = bearerToken ?? cookieToken
+
+  if (!token) {
+    req.userId = undefined
+    next()
+    return
+  }
+
+  try {
+    const payload = await verifyToken(token, {
+      secretKey: process.env.CLERK_SECRET_KEY,
+    })
+    req.userId = payload.sub
+    next()
+  } catch {
+    req.userId = undefined
+    next()
+  }
+}
