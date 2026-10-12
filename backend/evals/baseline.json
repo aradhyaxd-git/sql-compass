@@ -1,0 +1,26 @@
+{
+  "leakRateGate": 0.03,
+  "lengthComplianceGate": 0.95,
+  "p95LatencyMsGate": 6000,
+  "conceptHitRateGate": 0.70,
+  "baseline": {
+    "legacy": {
+      "leakRate": 0.15,
+      "lengthCompliance": 0.82,
+      "p95LatencyMs": 3200,
+      "conceptHitRate": 0.55
+    },
+    "graphWithoutGuard": {
+      "leakRate": 0.10,
+      "lengthCompliance": 0.96,
+      "p95LatencyMs": 4100,
+      "conceptHitRate": 0.85
+    },
+    "fullGraph": {
+      "leakRate": 0.00,
+      "lengthCompliance": 0.98,
+      "p95LatencyMs": 4400,
+      "conceptHitRate": 0.90
+    }
+  }
+}
