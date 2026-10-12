@@ -1628,7 +1628,7 @@ function FeaturesSection() {
                 <div
                   style={{ fontFamily: F.sql, fontSize: 11, color: C.online }}
                 >
-                  ✓ 342 rows · 38ms
+                  342 rows · 38ms
                 </div>
                 {[
                   ["Q1", "$142k"],

@@ -185,7 +185,7 @@ function MissionSkeleton({ index }: { index: number }) {
 export default function Dashboard() {
   const { user } = useUser()
   const [filter, setFilter] = useState<Filter>('all')
-  const { data: assignments, isLoading } = useAssignments()
+  const { data: assignments, isLoading, error, refetch } = useAssignments()
 
   const filtered = assignments?.filter(a => filter === 'all' || a.difficulty === filter) ?? []
 
@@ -276,6 +276,32 @@ export default function Dashboard() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
             {isLoading
               ? Array.from({ length: 6 }).map((_, i) => <MissionSkeleton key={i} index={i} />)
+              : error
+                ? (
+                  <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '60px 0' }}>
+                    <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 13, color: '#f43f5e', marginBottom: 12 }}>
+                      FAILED TO CONNECT TO BACKEND SERVER ({error instanceof Error ? error.message : 'Network Error'})
+                    </p>
+                    <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#64748b', marginBottom: 16 }}>
+                      Ensure backend is running on port 6000: npm run dev --prefix backend
+                    </p>
+                    <button
+                      onClick={() => refetch()}
+                      style={{
+                        padding: '6px 16px',
+                        background: 'rgba(99,102,241,0.15)',
+                        border: '1px solid rgba(99,102,241,0.3)',
+                        borderRadius: 6,
+                        color: '#a5b4fc',
+                        fontFamily: 'JetBrains Mono, monospace',
+                        fontSize: 12,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      RETRY CONNECTION
+                    </button>
+                  </div>
+                )
               : filtered.length > 0
                 ? filtered.map((a, i) => <MissionCard key={a._id} assignment={a} index={i} />)
                 : (

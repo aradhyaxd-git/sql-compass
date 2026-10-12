@@ -121,7 +121,7 @@ export default function HintPanel({ hintData, hint, isLoading, onRequest, onClea
                 borderRadius: 4,
               }}
             >
-              ⚡ CACHED
+              CACHED
             </span>
           )}
 
