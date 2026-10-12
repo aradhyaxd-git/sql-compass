@@ -1,0 +1,59 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sql_compass_backend
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - NODE_ENV=production
+      - CLIENT_ORIGIN=http://localhost:5173
+      - MONGO_URI=mongodb://mongo:27017/sqlcompass
+      - NEON_DATABASE_URL=postgres://sandbox_user:sandbox_password@postgres:5432/sqlcompass_sandbox
+      - SANDBOX_RO_URL=postgres://sandbox_ro:sandbox_password@postgres:5432/sqlcompass_sandbox
+      - HINT_GRAPH=true
+      - HINT_CACHE_TTL_SECONDS=600
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: sql_compass_postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: sqlcompass_sandbox
+      POSTGRES_USER: sandbox_user
+      POSTGRES_PASSWORD: sandbox_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sandbox_user -d sqlcompass_sandbox"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  mongo:
+    image: mongo:7-jammy
+    container_name: sql_compass_mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  mongo_data:

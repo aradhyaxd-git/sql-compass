@@ -2,7 +2,7 @@
 
 Welcome! This directory contains comprehensive documentation for SQL Compass, a full-stack SQL learning platform with AI-powered hints.
 
-## 📚 Documentation Structure
+##  Documentation Structure
 
 ### For Getting Started
 Start here if you're new to the project:
@@ -16,7 +16,7 @@ Start here if you're new to the project:
 ### For Understanding the System
 Want to understand how everything works?
 
-2. **[ARCHITECTURE.md](./ARCHITECTURE.md)** 🏗️
+2. **[ARCHITECTURE.md](./ARCHITECTURE.md)** ️
    - System architecture diagram
    - Database design (MongoDB + PostgreSQL)
    - All API endpoints with examples
@@ -28,7 +28,7 @@ Want to understand how everything works?
 ### For Using & Building With APIs
 Need to know how to interact with the backend?
 
-3. **[API_REFERENCE.md](./API_REFERENCE.md)** 📡
+3. **[API_REFERENCE.md](./API_REFERENCE.md)** 
    - Complete API endpoints documentation
    - Request/response examples
    - Error codes
@@ -40,7 +40,7 @@ Need to know how to interact with the backend?
 ### For Interviewing Well
 Preparing for interviews? Start here:
 
-4. **[INTERVIEW_GUIDE.md](./INTERVIEW_GUIDE.md)** 🎯
+4. **[INTERVIEW_GUIDE.md](./INTERVIEW_GUIDE.md)** 
    - 13 technical interview questions with detailed answers
    - Behavioral interview preparation
    - Technical deep-dives (architecture, optimization, security)
@@ -53,7 +53,7 @@ Preparing for interviews? Start here:
 ### For Deploying to Production
 Ready to ship?
 
-5. **[DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md)** 🚀
+5. **[DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md)** 
    - Pre-release checklist
    - Multiple deployment strategies (Railway, Vercel, AWS, Docker)
    - Repository setup with GitHub Actions
@@ -66,7 +66,7 @@ Ready to ship?
 ### For Contributing
 Want to contribute to the project?
 
-6. **[CONTRIBUTING.md](./CONTRIBUTING.md)** 🤝
+6. **[CONTRIBUTING.md](./CONTRIBUTING.md)** 
    - Code of conduct
    - Development setup
    - Branch naming conventions
@@ -76,7 +76,7 @@ Want to contribute to the project?
 
 ---
 
-## 🎯 Quick Navigation by Use Case
+##  Quick Navigation by Use Case
 
 ### "I'm a developer starting on this project"
 1. Read [README.md](./README.md)
@@ -120,7 +120,7 @@ Want to contribute to the project?
 
 ---
 
-## 📖 Documentation Map
+##  Documentation Map
 
 ### ARCHITECTURE.md (4,500+ words)
 ```
@@ -194,7 +194,7 @@ Want to contribute to the project?
 
 ---
 
-## 🏗️ System Overview (TL;DR)
+## ️ System Overview (TL;DR)
 
 ```
 User's Browser
@@ -221,48 +221,48 @@ Express Backend (5000)
 
 ---
 
-## 🎓 What You'll Learn From This Project
+##  What You'll Learn From This Project
 
 Building SQL Compass demonstrates:
 
 ### Full-Stack Skills
-- ✅ 3-tier architecture (frontend, backend, database)
-- ✅ Real-time state management (React Query)
-- ✅ RESTful API design
-- ✅ Authentication with JWTs
-- ✅ Error handling patterns
+-  3-tier architecture (frontend, backend, database)
+-  Real-time state management (React Query)
+-  RESTful API design
+-  Authentication with JWTs
+-  Error handling patterns
 
 ### Backend Skills
-- ✅ Express middleware pipeline
-- ✅ Service-Controller-Model pattern
-- ✅ Rate limiting strategies
-- ✅ Database optimization
-- ✅ API security (SQL injection prevention)
+-  Express middleware pipeline
+-  Service-Controller-Model pattern
+-  Rate limiting strategies
+-  Database optimization
+-  API security (SQL injection prevention)
 
 ### Frontend Skills
-- ✅ React hooks (custom + standard)
-- ✅ TypeScript type safety
-- ✅ Responsive UI design
-- ✅ Component composition
-- ✅ Performance optimization
+-  React hooks (custom + standard)
+-  TypeScript type safety
+-  Responsive UI design
+-  Component composition
+-  Performance optimization
 
 ### DevOps Skills
-- ✅ Docker containerization
-- ✅ CI/CD with GitHub Actions
-- ✅ Environment management
-- ✅ Deployment strategies
-- ✅ Monitoring & logging
+-  Docker containerization
+-  CI/CD with GitHub Actions
+-  Environment management
+-  Deployment strategies
+-  Monitoring & logging
 
 ### Interview Skills
-- ✅ System design thinking
-- ✅ Trade-off analysis
-- ✅ Scaling considerations
-- ✅ Code communication
-- ✅ Problem-solving storytelling
+-  System design thinking
+-  Trade-off analysis
+-  Scaling considerations
+-  Code communication
+-  Problem-solving storytelling
 
 ---
 
-## 🚀 Getting Started In 5 Minutes
+##  Getting Started In 5 Minutes
 
 ### Option 1: Local Development
 ```bash
@@ -286,7 +286,7 @@ Follow [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) → Railway.app section
 
 ---
 
-## 📋 Document Checklist for Your Use Case
+##  Document Checklist for Your Use Case
 
 ### If you're going to an interview:
 - [x] Read ARCHITECTURE.md (system understanding)
@@ -319,7 +319,7 @@ Follow [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) → Railway.app section
 
 ---
 
-## ❓ FAQ
+##  FAQ
 
 **Q: Which document should I read first?**
 A: README.md, then ARCHITECTURE.md if you want to understand the system.
@@ -341,22 +341,22 @@ A: Absolutely! It demonstrates full-stack competency well.
 
 ---
 
-## 📞 Support
+##  Support
 
-- 📧 Questions: Check the relevant documentation section
-- 🐛 Found a bug: Add console.log, check logs
-- 💡 Want to contribute: Read CONTRIBUTING.md
-- 🚀 Ready to deploy: Follow DEPLOYMENT_GUIDE.md
+-  Questions: Check the relevant documentation section
+-  Found a bug: Add console.log, check logs
+-  Want to contribute: Read CONTRIBUTING.md
+-  Ready to deploy: Follow DEPLOYMENT_GUIDE.md
 
 ---
 
-## 📄 License
+##  License
 
 This project is licensed under the MIT License - see [LICENSE](./LICENSE) for details.
 
 ---
 
-## 🎯 Next Steps
+##  Next Steps
 
 1. **Choose your path** (developer / interviewer / deployer)
 2. **Read relevant documentation** from structure above
@@ -364,4 +364,4 @@ This project is licensed under the MIT License - see [LICENSE](./LICENSE) for de
 4. **Ask questions** (they're in the docs!)
 5. **Build something amazing**
 
-Happy learning! 🎓
+Happy learning! 

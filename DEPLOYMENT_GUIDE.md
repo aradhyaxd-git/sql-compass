@@ -426,11 +426,11 @@ jobs:
 
 ## Features
 
-- 📚 31 SQL practice assignments
-- 💡 AI-powered hints (Google Gemini)
-- ✈️ Flight logs with attempt history
-- 🎯 XP system for gamification
-- 🔐 Secure authentication (Clerk)
+-  31 SQL practice assignments
+-  AI-powered hints (Google Gemini)
+- ️ Flight logs with attempt history
+-  XP system for gamification
+-  Secure authentication (Clerk)
 
 ## Tech Stack
 
@@ -487,9 +487,9 @@ MIT License - see [LICENSE](./LICENSE) for details
 
 ## Support
 
-- 📧 Email: support@sqlcompass.dev
-- 🐛 [Report bugs](https://github.com/yourusername/sql-compass/issues)
-- 💡 [Request features](https://github.com/yourusername/sql-compass/issues)
+-  Email: support@sqlcompass.dev
+-  [Report bugs](https://github.com/yourusername/sql-compass/issues)
+-  [Request features](https://github.com/yourusername/sql-compass/issues)
 ```
 
 ---
@@ -760,4 +760,4 @@ A: Yes! Post on GitHub discussing future features.
 - [Keep a Changelog](https://keepachangelog.com/)
 - [Open Source Guide](https://opensource.guide/)
 
-Good luck launching! 🚀
+Good luck launching! 
