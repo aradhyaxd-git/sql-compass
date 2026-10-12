@@ -8,6 +8,8 @@ export interface IAssignment extends Document {
   tags: string[] //eg: ['GROUP BY', 'HAVING']
   tableNames: string[] // e.g. ['employees'] — used by schema endpoint
   schemaDetails: string // plain-text schema hint for LLM prompt
+  referenceSql: string
+  orderMatters: boolean
   createdAt: Date
   updatedAt: Date
 }
@@ -40,6 +42,15 @@ const assignmentSchema = new Schema<IAssignment>(
     schemaDetails: {
       type: String,
       required: true,
+    },
+    referenceSql: {
+      type: String,
+      required: true,
+      select: false,
+    },
+    orderMatters: {
+      type: Boolean,
+      default: false,
     },
   },
   { timestamps: true }
