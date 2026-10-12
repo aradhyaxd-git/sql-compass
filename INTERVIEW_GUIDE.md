@@ -627,34 +627,34 @@ Email, Discord, etc.
 
 ### In Interviews
 
-❌ **"I built this entire app in a week."**
-✅ **"I started with auth, then query execution, then hints. Each component was deliberate."**
+ **"I built this entire app in a week."**
+ **"I started with auth, then query execution, then hints. Each component was deliberate."**
 
-❌ **"I never ask for requirements, I just build."**
-✅ **"I always clarify scope first—for templates, I'd ask about sharing, search, pagination..."**
+ **"I never ask for requirements, I just build."**
+ **"I always clarify scope first—for templates, I'd ask about sharing, search, pagination..."**
 
-❌ **"My database design is perfect, no need to optimize."**
-✅ **"I'd add indexing, caching, and replicas as we scale."**
+ **"My database design is perfect, no need to optimize."**
+ **"I'd add indexing, caching, and replicas as we scale."**
 
-❌ **"I don't test my code, it just works."**
-✅ **"I manually test features, but I'd add automated tests for production."**
+ **"I don't test my code, it just works."**
+ **"I manually test features, but I'd add automated tests for production."**
 
 ### In Open Source
 
-❌ **No `.env.example` file**
-✅ **Clear template showing all required variables**
+ **No `.env.example` file**
+ **Clear template showing all required variables**
 
-❌ **README with no setup instructions**
-✅ **Step-by-step guide that anyone can follow**
+ **README with no setup instructions**
+ **Step-by-step guide that anyone can follow**
 
-❌ **Random commit messages**
-✅ **Conventional commits (feat:, fix:, etc.)**
+ **Random commit messages**
+ **Conventional commits (feat:, fix:, etc.)**
 
-❌ **No license file**
-✅ **MIT or Apache 2.0 in LICENSE file**
+ **No license file**
+ **MIT or Apache 2.0 in LICENSE file**
 
-❌ **Tight coupling between modules**
-✅ **Services are independent and composable**
+ **Tight coupling between modules**
+ **Services are independent and composable**
 
 ---
 
@@ -755,4 +755,4 @@ Before Interviews:
 - Open Source Contribution Guide
 - Keep a CHANGELOG
 
-Good luck! 🚀
+Good luck! 

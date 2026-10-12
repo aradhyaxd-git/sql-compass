@@ -19,13 +19,13 @@
 **SQL Compass** is a full-stack learning platform for SQL practice with AI-powered hint generation. It allows users to solve SQL queries, track progress, and receive intelligent hints using Google's Generative AI.
 
 ### Key Features
-- 📚 31 SQL practice assignments across 6 database tables
-- 💡 AI-powered hint generation (Google Gemini 2.0 Flash)
-- ✈️ Flight Log tracking user attempt history
-- 🎯 XP system for gamification
-- 🔐 Clerk authentication
-- 📊 Live query execution sandbox
-- 🎨 LeetCode-style resizable interface
+-  31 SQL practice assignments across 6 database tables
+-  AI-powered hint generation (Google Gemini 2.0 Flash)
+- ️ Flight Log tracking user attempt history
+-  XP system for gamification
+-  Clerk authentication
+-  Live query execution sandbox
+-  LeetCode-style resizable interface
 
 ---
 
@@ -875,13 +875,13 @@ rank = totalXP < 100 ? 'Novice'
 ## Conclusion
 
 SQL Compass demonstrates:
-- ✅ Full-stack development with modern tech
-- ✅ Real-world database design (NoSQL + SQL)
-- ✅ API design with proper security/rate limiting
-- ✅ User authentication and authorization
-- ✅ AI/ML integration (LLM)
-- ✅ Performance optimization
-- ✅ Professional UI/UX design
-- ✅ Best practices in code organization
+-  Full-stack development with modern tech
+-  Real-world database design (NoSQL + SQL)
+-  API design with proper security/rate limiting
+-  User authentication and authorization
+-  AI/ML integration (LLM)
+-  Performance optimization
+-  Professional UI/UX design
+-  Best practices in code organization
 
-Perfect portfolio project for showcasing engineering skills! 🚀
+Perfect portfolio project for showcasing engineering skills! 
