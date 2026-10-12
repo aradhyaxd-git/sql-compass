@@ -21,7 +21,7 @@ export const executeUserQuery = async (sql: string): Promise<QueryResult> => {
   const startTime = Date.now()
 
   try {
-    await client.query('BEGIN')
+    await client.query('BEGIN READ ONLY')
     await client.query(`SET LOCAL statement_timeout = '${QUERY_TIMEOUT_MS}'`) 
     const result = await client.query(finalSQL)
     await client.query('COMMIT')
