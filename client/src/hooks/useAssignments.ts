@@ -1,5 +1,4 @@
 import { useQuery } from '@tanstack/react-query'
-import { useAuth } from '@clerk/react'
 import assignmentService from '@/services/assignment.service'
 
 export const assignmentKeys = {
@@ -9,34 +8,27 @@ export const assignmentKeys = {
 }
 
 export function useAssignments() {
-  const { isLoaded, isSignedIn } = useAuth()
-  
   return useQuery({
     queryKey: assignmentKeys.all,
     queryFn: assignmentService.getAll,
-    enabled: isLoaded && isSignedIn,
     staleTime: 5 * 60 * 1000,
   })
 }
 
 export function useAssignment(id: string) {
-  const { isLoaded, isSignedIn } = useAuth()
-  
   return useQuery({
     queryKey: assignmentKeys.detail(id),
     queryFn: () => assignmentService.getById(id),
-    enabled: Boolean(id) && isLoaded && isSignedIn,
+    enabled: Boolean(id),
     staleTime: 5 * 60 * 1000,
   })
 }
 
 export function useAssignmentSchema(id: string) {
-  const { isLoaded, isSignedIn } = useAuth()
-  
   return useQuery({
     queryKey: assignmentKeys.schema(id),
     queryFn: () => assignmentService.getSchema(id),
-    enabled: Boolean(id) && isLoaded && isSignedIn,
+    enabled: Boolean(id),
     staleTime: 10 * 60 * 1000,
   })
 }
