@@ -1,7 +1,7 @@
 import mongoose, { Document, Schema } from 'mongoose'
 
 export interface IAttempt extends Document {
-  userId: string //for clerk
+  userId: string
   assignmentId: string    // Mongo Assignment _id
   assignmentTitle: string // denormalized for quick profile display
   query: string // the SQL the user ran

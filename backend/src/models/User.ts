@@ -68,6 +68,8 @@ const userSchema = new Schema<IUser>(
     passwordResetTokenHash: {
       type: String,
       select: false,
+      index: true,
+      sparse: true,
     },
     passwordResetExpires: {
       type: Date,
