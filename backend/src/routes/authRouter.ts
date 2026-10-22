@@ -10,7 +10,6 @@ import {
   setup2FAController,
   confirm2FAController,
   forgotPasswordController,
-  verifyResetTokenController,
   resetPasswordController,
   getCurrentUser,
   logout,
@@ -29,7 +28,6 @@ router.post('/2fa/setup-confirm', confirm2FASetupWithChallengeController)
 router.post('/2fa/setup', requireAuth, setup2FAController)
 router.post('/2fa/confirm', requireAuth, confirm2FAController)
 router.post('/forgot-password', forgotPasswordController)
-router.all('/verify-reset-token', verifyResetTokenController)
 router.post('/reset-password', resetPasswordController)
 router.get('/me', requireAuth, getCurrentUser)
 router.post('/logout', logout)

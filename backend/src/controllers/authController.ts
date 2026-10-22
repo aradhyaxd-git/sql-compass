@@ -12,10 +12,10 @@ import {
 } from '../services/authService.js'
 import { getGoogleAuthorizationUrl } from '../services/googleAuthService.js'
 import {
-  requestPasswordReset,
-  verifyPasswordResetToken,
+  initiatePasswordReset,
   completePasswordReset,
 } from '../services/passwordResetService.js'
+
 import { getAuthCookieOptions, AUTH_COOKIE_NAME } from '../utils/cookieUtils.js'
 import User from '../models/User.js'
 import { logger } from '../utils/logger.js'
@@ -198,63 +198,43 @@ export const confirm2FAController = async (req: Request, res: Response): Promise
 
 export const forgotPasswordController = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email } = req.body || {}
-    if (!email) {
-      res.status(400).json({ success: false, message: 'Email address is required' })
+    const { username } = req.body || {}
+    if (!username) {
+      res.status(400).json({ success: false, message: 'Username is required' })
       return
     }
 
-    const result = await requestPasswordReset(String(email))
+    const result = await initiatePasswordReset(String(username))
     res.status(200).json({
       success: true,
-      message: result.message,
-      ...(result.resetToken ? { resetToken: result.resetToken } : {}),
-      expiresInMinutes: result.expiresInMinutes,
+      data: result,
     })
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error)
-    res.status(500).json({ success: false, message: msg })
-  }
-}
-
-export const verifyResetTokenController = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const token = typeof req.query.token === 'string' ? req.query.token : String(req.body?.token || '')
-    if (!token) {
-      res.status(400).json({ success: false, message: 'Reset token is required' })
-      return
-    }
-
-    const result = await verifyPasswordResetToken(token)
-    res.status(200).json({ success: true, data: result })
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error)
-    res.status(500).json({ success: false, message: msg })
-  }
-}
-
-export const resetPasswordController = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { token, newPassword } = req.body || {}
-    if (!token || !newPassword) {
-      res.status(400).json({ success: false, message: 'Token and new password are required' })
-      return
-    }
-
-    const userId = await completePasswordReset(String(token), String(newPassword))
-    const user = await User.findById(userId)
-    if (!user) {
-      res.status(404).json({ success: false, message: 'User not found' })
-      return
-    }
-
-    const result = await prepareMandatory2FAResult(user)
-    res.status(200).json({ success: true, ...result })
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
     res.status(400).json({ success: false, message: msg })
   }
 }
+
+export const resetPasswordController = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { challengeToken, code, newPassword } = req.body || {}
+    if (!challengeToken || !code || !newPassword) {
+      res.status(400).json({ success: false, message: 'Challenge token, 6-digit code, and new password are required' })
+      return
+    }
+
+    const result = await completePasswordReset(String(challengeToken), String(code), String(newPassword))
+    res.cookie(AUTH_COOKIE_NAME, result.token, getAuthCookieOptions())
+    res.status(200).json({
+      success: true,
+      data: { user: result.user },
+    })
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error)
+    res.status(400).json({ success: false, message: msg })
+  }
+}
+
 
 export const getCurrentUser = async (req: Request, res: Response): Promise<void> => {
   try {

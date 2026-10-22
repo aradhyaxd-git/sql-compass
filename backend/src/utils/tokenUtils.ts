@@ -51,3 +51,18 @@ export function verify2FAChallengeToken(token: string): { sub: string } {
   }
   return { sub: payload.sub }
 }
+
+export function generateResetChallengeToken(userId: string, username: string): string {
+  return jwt.sign({ sub: userId, username, type: 'pwd_reset_challenge' }, JWT_SECRET, {
+    expiresIn: CHALLENGE_EXPIRES_IN,
+  })
+}
+
+export function verifyResetChallengeToken(token: string): { sub: string; username: string } {
+  const payload = jwt.verify(token, JWT_SECRET) as { sub: string; username: string; type?: string }
+  if (payload.type !== 'pwd_reset_challenge') {
+    throw new Error('Invalid password reset challenge token')
+  }
+  return { sub: payload.sub, username: payload.username }
+}
+

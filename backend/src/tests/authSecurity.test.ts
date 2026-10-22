@@ -6,6 +6,8 @@ import {
   verifySessionToken,
   generate2FAChallengeToken,
   verify2FAChallengeToken,
+  generateResetChallengeToken,
+  verifyResetChallengeToken,
 } from '../utils/tokenUtils.js'
 
 async function runAuthSecurityTests() {
@@ -68,22 +70,21 @@ async function runAuthSecurityTests() {
   }, /already used/)
   console.log('Anti-replay TOTP enforcement passed.')
 
-  // 5. Password Reset Single-Use Cryptographic SHA-256 Flow
-  const rawToken = crypto.randomBytes(32).toString('hex')
-  const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex')
-  const tamperedToken = rawToken.slice(0, -2) + 'aa'
-  const tamperedHash = crypto.createHash('sha256').update(tamperedToken).digest('hex')
+  // 5. Password Reset Challenge Token Verification and Isolation
+  const resetToken = generateResetChallengeToken(dummyUser._id, dummyUser.username)
+  const resetDecoded = verifyResetChallengeToken(resetToken)
+  assert.strictEqual(resetDecoded.sub, dummyUser._id)
+  assert.strictEqual(resetDecoded.username, dummyUser.username)
 
-  assert.notStrictEqual(tokenHash, tamperedHash)
+  assert.throws(() => {
+    verifyResetChallengeToken(sessionToken)
+  }, /Invalid password reset challenge token/)
 
-  // Simulation of temporal expiry
-  const now = Date.now()
-  const expiresAt = now + 15 * 60 * 1000
-  assert.strictEqual(expiresAt > now, true)
+  assert.throws(() => {
+    verifyResetChallengeToken(challengeToken)
+  }, /Invalid password reset challenge token/)
 
-  const expiredAt = now - 1000
-  assert.strictEqual(expiredAt > now, false)
-  console.log('Password reset cryptographic hash and temporal verification passed.')
+  console.log('Password reset challenge token verification and isolation passed.')
 
   console.log('[SUCCESS] All Auth Security test suites passed cleanly.')
 }

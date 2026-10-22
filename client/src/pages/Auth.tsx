@@ -10,7 +10,6 @@ import {
   Loader2,
   AlertCircle,
   KeyRound,
-  CheckCircle2,
   ArrowLeft,
   Copy,
   Check,
@@ -28,6 +27,7 @@ export default function Auth() {
     verify2FALogin,
     confirm2FASetupWithChallenge,
     requestPasswordReset,
+    completePasswordReset,
   } = useAuth()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
@@ -46,7 +46,6 @@ export default function Auth() {
   // State
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [isExchangingCode, setIsExchangingCode] = useState(false)
   const [copiedSecret, setCopiedSecret] = useState(false)
 
@@ -63,9 +62,11 @@ export default function Auth() {
     username?: string
   } | null>(null)
 
-  // Forgot Password State
-  const [resetEmail, setResetEmail] = useState('')
-  const [devResetToken, setDevResetToken] = useState<string | null>(null)
+  const [resetUsername, setResetUsername] = useState('')
+  const [resetChallengeToken, setResetChallengeToken] = useState<string | null>(null)
+  const [resetTotpCode, setResetTotpCode] = useState('')
+  const [resetNewPassword, setResetNewPassword] = useState('')
+  const [resetConfirmPassword, setResetConfirmPassword] = useState('')
 
   const oauthCode = searchParams.get('code')
 
@@ -265,26 +266,57 @@ export default function Auth() {
     }
   }
 
-  const handleForgotPasswordSubmit = async (e: React.FormEvent) => {
+  const handleForgotUsernameSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!resetEmail) {
-      setErrorMessage('Please enter your email address.')
+    if (!resetUsername) {
+      setErrorMessage('Please enter your username.')
       return
     }
 
     setIsSubmitting(true)
     setErrorMessage(null)
-    setSuccessMessage(null)
-    setDevResetToken(null)
 
     try {
-      const res = await requestPasswordReset(resetEmail)
-      setSuccessMessage(res.message || 'Password reset instructions have been generated.')
-      if (res.resetToken) {
-        setDevResetToken(res.resetToken)
-      }
+      const res = await requestPasswordReset(resetUsername)
+      setResetChallengeToken(res.challengeToken)
     } catch (err: any) {
-      const msg = err.response?.data?.message || err.message || 'Failed to request password reset'
+      const msg = err.response?.data?.message || err.message || 'Failed to locate account'
+      setErrorMessage(msg)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleResetPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!resetChallengeToken || !resetTotpCode || !resetNewPassword || !resetConfirmPassword) {
+      setErrorMessage('Please complete all required fields.')
+      return
+    }
+
+    if (resetTotpCode.length !== 6) {
+      setErrorMessage('Please enter a valid 6-digit authenticator code.')
+      return
+    }
+
+    if (resetNewPassword.length < 8) {
+      setErrorMessage('Password must be at least 8 characters long.')
+      return
+    }
+
+    if (resetNewPassword !== resetConfirmPassword) {
+      setErrorMessage('Passwords do not match.')
+      return
+    }
+
+    setIsSubmitting(true)
+    setErrorMessage(null)
+
+    try {
+      await completePasswordReset(resetChallengeToken, resetTotpCode, resetNewPassword)
+      navigate('/dashboard', { replace: true })
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Failed to reset password'
       setErrorMessage(msg)
     } finally {
       setIsSubmitting(false)
@@ -382,7 +414,7 @@ export default function Auth() {
               : mode === 'signup'
               ? 'Create your account'
               : mode === 'forgot'
-              ? 'Reset your password'
+              ? (resetChallengeToken ? 'Confirm New Password' : 'Reset your password')
               : isExchangingCode
               ? 'Signing you in...'
               : 'Sign in to SQL Compass'}
@@ -397,7 +429,9 @@ export default function Auth() {
               : mode === 'signup'
               ? 'Choose a unique username and enter your details.'
               : mode === 'forgot'
-              ? 'Enter your account email to receive a temporary reset link.'
+              ? (resetChallengeToken
+                  ? 'Enter the 6-digit code from your authenticator app and choose a new password.'
+                  : 'Enter your username to begin password recovery with your authenticator app.')
               : 'Welcome back. Enter your username and password to continue.'}
           </p>
         </div>
@@ -799,169 +833,354 @@ export default function Auth() {
               </button>
             </form>
           ) : mode === 'forgot' ? (
-            /* Forgot Password Form */
-            <form onSubmit={handleForgotPasswordSubmit}>
-              {errorMessage && (
-                <div
-                  style={{
-                    marginBottom: 16,
-                    padding: '10px 14px',
-                    borderRadius: 8,
-                    background: 'var(--status-danger-bg)',
-                    border: '1px solid rgba(244, 63, 94, 0.3)',
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: 10,
-                  }}
-                >
-                  <AlertCircle size={16} color="var(--status-danger)" style={{ marginTop: 2, flexShrink: 0 }} />
-                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--status-danger)', lineHeight: 1.4 }}>
-                    {errorMessage}
-                  </div>
-                </div>
-              )}
-
-              {successMessage && (
-                <div
-                  style={{
-                    marginBottom: 16,
-                    padding: '12px 14px',
-                    borderRadius: 8,
-                    background: 'rgba(34, 197, 94, 0.1)',
-                    border: '1px solid rgba(34, 197, 94, 0.3)',
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: 10,
-                  }}
-                >
-                  <CheckCircle2 size={16} color="var(--status-success, #22c55e)" style={{ marginTop: 2, flexShrink: 0 }} />
-                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--status-success, #22c55e)', lineHeight: 1.4 }}>
-                    {successMessage}
-                  </div>
-                </div>
-              )}
-
-              {devResetToken && (
-                <div
-                  style={{
-                    marginBottom: 16,
-                    padding: 12,
-                    borderRadius: 8,
-                    background: 'var(--bg-subtle)',
-                    border: '1px dashed var(--brand-border)',
-                  }}
-                >
-                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>
-                    Development Reset Link:
-                  </div>
-                  <Link
-                    to={`/reset-password?token=${devResetToken}`}
+            !resetChallengeToken ? (
+              <form onSubmit={handleForgotUsernameSubmit}>
+                {errorMessage && (
+                  <div
                     style={{
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: 11,
-                      color: 'var(--brand-primary)',
-                      wordBreak: 'break-all',
-                      textDecoration: 'underline',
+                      marginBottom: 16,
+                      padding: '10px 14px',
+                      borderRadius: 8,
+                      background: 'var(--status-danger-bg)',
+                      border: '1px solid rgba(244, 63, 94, 0.3)',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: 10,
                     }}
                   >
-                    Click to open Reset Password Screen
-                  </Link>
-                </div>
-              )}
+                    <AlertCircle size={16} color="var(--status-danger)" style={{ marginTop: 2, flexShrink: 0 }} />
+                    <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--status-danger)', lineHeight: 1.4 }}>
+                      {errorMessage}
+                    </div>
+                  </div>
+                )}
 
-              <div style={{ marginBottom: 20 }}>
-                <label
-                  htmlFor="reset-email"
+                <div style={{ marginBottom: 20 }}>
+                  <label
+                    htmlFor="reset-username"
+                    style={{
+                      display: 'block',
+                      fontFamily: 'var(--font-sans)',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      marginBottom: 6,
+                    }}
+                  >
+                    Account Username
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      id="reset-username"
+                      type="text"
+                      value={resetUsername}
+                      onChange={(e) => setResetUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''))}
+                      placeholder="your_username"
+                      required
+                      autoFocus
+                      style={{
+                        width: '100%',
+                        padding: '10px 14px 10px 36px',
+                        borderRadius: 8,
+                        border: '1px solid var(--border-default)',
+                        background: 'var(--bg-elevated)',
+                        color: 'var(--text-primary)',
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: 13,
+                        outline: 'none',
+                      }}
+                    />
+                    <span
+                      style={{
+                        position: 'absolute',
+                        left: 12,
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: 13,
+                        color: 'var(--text-muted)',
+                      }}
+                    >
+                      @
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSubmitting || !resetUsername}
                   style={{
-                    display: 'block',
+                    width: '100%',
+                    padding: '12px 18px',
+                    borderRadius: 8,
+                    border: 'none',
+                    background: 'var(--brand-primary)',
+                    color: '#ffffff',
                     fontFamily: 'var(--font-sans)',
-                    fontSize: 12,
+                    fontSize: 14,
                     fontWeight: 600,
-                    color: 'var(--text-secondary)',
-                    marginBottom: 6,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    cursor: isSubmitting || !resetUsername ? 'not-allowed' : 'pointer',
+                    opacity: isSubmitting || !resetUsername ? 0.7 : 1,
+                    marginBottom: 12,
                   }}
                 >
-                  Account Email Address
-                </label>
-                <div style={{ position: 'relative' }}>
+                  {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <span>Continue to Authenticator Verification</span>}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('signin')
+                    setErrorMessage(null)
+                    setResetChallengeToken(null)
+                    setResetTotpCode('')
+                    setResetNewPassword('')
+                    setResetConfirmPassword('')
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: 12,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                  }}
+                >
+                  <ArrowLeft size={14} />
+                  <span>Back to sign in</span>
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleResetPasswordSubmit}>
+                {errorMessage && (
+                  <div
+                    style={{
+                      marginBottom: 16,
+                      padding: '10px 14px',
+                      borderRadius: 8,
+                      background: 'var(--status-danger-bg)',
+                      border: '1px solid rgba(244, 63, 94, 0.3)',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: 10,
+                    }}
+                  >
+                    <AlertCircle size={16} color="var(--status-danger)" style={{ marginTop: 2, flexShrink: 0 }} />
+                    <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--status-danger)', lineHeight: 1.4 }}>
+                      {errorMessage}
+                    </div>
+                  </div>
+                )}
+
+                <div
+                  style={{
+                    padding: 12,
+                    borderRadius: 8,
+                    background: 'var(--brand-muted)',
+                    border: '1px solid var(--brand-border)',
+                    marginBottom: 18,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                  }}
+                >
+                  <KeyRound size={18} color="var(--brand-primary)" style={{ flexShrink: 0 }} />
+                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--text-primary)' }}>
+                    Resetting password for <strong>@{resetUsername}</strong>
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: 16 }}>
+                  <label
+                    htmlFor="reset-totp-code"
+                    style={{
+                      display: 'block',
+                      fontFamily: 'var(--font-sans)',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      marginBottom: 6,
+                    }}
+                  >
+                    6-Digit Authenticator Code
+                  </label>
                   <input
-                    id="reset-email"
-                    type="email"
-                    value={resetEmail}
-                    onChange={(e) => setResetEmail(e.target.value)}
-                    placeholder="name@example.com"
+                    id="reset-totp-code"
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={resetTotpCode}
+                    onChange={(e) => setResetTotpCode(e.target.value.replace(/\D/g, ''))}
+                    placeholder="000000"
+                    autoFocus
                     required
                     style={{
                       width: '100%',
-                      padding: '10px 14px 10px 36px',
+                      padding: '10px 14px',
                       borderRadius: 8,
                       border: '1px solid var(--border-default)',
                       background: 'var(--bg-elevated)',
                       color: 'var(--text-primary)',
                       fontFamily: 'var(--font-mono)',
-                      fontSize: 13,
+                      fontSize: 18,
+                      letterSpacing: '0.25em',
+                      textAlign: 'center',
                       outline: 'none',
                     }}
                   />
-                  <Mail
-                    size={15}
-                    color="var(--text-muted)"
-                    style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }}
-                  />
                 </div>
-              </div>
 
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                style={{
-                  width: '100%',
-                  padding: '12px 18px',
-                  borderRadius: 8,
-                  border: 'none',
-                  background: 'var(--brand-primary)',
-                  color: '#ffffff',
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 14,
-                  fontWeight: 600,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8,
-                  cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                  opacity: isSubmitting ? 0.7 : 1,
-                  marginBottom: 12,
-                }}
-              >
-                {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <span>Send Reset Instructions</span>}
-              </button>
+                <div style={{ marginBottom: 16 }}>
+                  <label
+                    htmlFor="reset-new-password"
+                    style={{
+                      display: 'block',
+                      fontFamily: 'var(--font-sans)',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      marginBottom: 6,
+                    }}
+                  >
+                    New Password (min. 8 characters)
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      id="reset-new-password"
+                      type="password"
+                      value={resetNewPassword}
+                      onChange={(e) => setResetNewPassword(e.target.value)}
+                      placeholder="Enter new password"
+                      required
+                      minLength={8}
+                      style={{
+                        width: '100%',
+                        padding: '10px 14px 10px 36px',
+                        borderRadius: 8,
+                        border: '1px solid var(--border-default)',
+                        background: 'var(--bg-elevated)',
+                        color: 'var(--text-primary)',
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: 13,
+                        outline: 'none',
+                      }}
+                    />
+                    <Lock
+                      size={15}
+                      color="var(--text-muted)"
+                      style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }}
+                    />
+                  </div>
+                </div>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setMode('signin')
-                  setErrorMessage(null)
-                  setSuccessMessage(null)
-                }}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--text-muted)',
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 12,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 6,
-                }}
-              >
-                <ArrowLeft size={14} />
-                <span>Back to sign in</span>
-              </button>
-            </form>
+                <div style={{ marginBottom: 20 }}>
+                  <label
+                    htmlFor="reset-confirm-password"
+                    style={{
+                      display: 'block',
+                      fontFamily: 'var(--font-sans)',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      marginBottom: 6,
+                    }}
+                  >
+                    Confirm New Password
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      id="reset-confirm-password"
+                      type="password"
+                      value={resetConfirmPassword}
+                      onChange={(e) => setResetConfirmPassword(e.target.value)}
+                      placeholder="Repeat new password"
+                      required
+                      minLength={8}
+                      style={{
+                        width: '100%',
+                        padding: '10px 14px 10px 36px',
+                        borderRadius: 8,
+                        border: '1px solid var(--border-default)',
+                        background: 'var(--bg-elevated)',
+                        color: 'var(--text-primary)',
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: 13,
+                        outline: 'none',
+                      }}
+                    />
+                    <Lock
+                      size={15}
+                      color="var(--text-muted)"
+                      style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }}
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSubmitting || resetTotpCode.length !== 6 || resetNewPassword.length < 8}
+                  style={{
+                    width: '100%',
+                    padding: '12px 18px',
+                    borderRadius: 8,
+                    border: 'none',
+                    background: 'var(--brand-primary)',
+                    color: '#ffffff',
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: 14,
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    cursor:
+                      isSubmitting || resetTotpCode.length !== 6 || resetNewPassword.length < 8
+                        ? 'not-allowed'
+                        : 'pointer',
+                    opacity:
+                      isSubmitting || resetTotpCode.length !== 6 || resetNewPassword.length < 8 ? 0.7 : 1,
+                    marginBottom: 12,
+                  }}
+                >
+                  {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <span>Update Password & Sign In</span>}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setResetChallengeToken(null)
+                    setErrorMessage(null)
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: 12,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                  }}
+                >
+                  <ArrowLeft size={14} />
+                  <span>Back to username step</span>
+                </button>
+              </form>
+            )
           ) : mode === 'signup' ? (
             /* Sign Up Form */
             <form onSubmit={handleSignUpSubmit}>
@@ -1381,7 +1600,8 @@ export default function Auth() {
                       onClick={() => {
                         setMode('forgot')
                         setErrorMessage(null)
-                        setResetEmail('')
+                        setResetUsername('')
+                        setResetChallengeToken(null)
                       }}
                       style={{
                         background: 'none',

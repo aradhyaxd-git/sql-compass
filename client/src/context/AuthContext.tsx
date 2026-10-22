@@ -51,9 +51,8 @@ interface AuthContextType {
   confirm2FASetupWithChallenge: (challengeToken: string, code: string) => Promise<void>
   setup2FA: () => Promise<{ secret: string; qrCodeUrl: string }>
   confirm2FA: (code: string) => Promise<void>
-  requestPasswordReset: (email: string) => Promise<{ message: string; resetToken?: string; expiresInMinutes: number }>
-  verifyResetToken: (token: string) => Promise<{ valid: boolean; email?: string; remainingSeconds?: number }>
-  completePasswordReset: (token: string, newPassword: string) => Promise<AuthLoginResponse>
+  requestPasswordReset: (username: string) => Promise<{ challengeToken: string; username: string }>
+  completePasswordReset: (challengeToken: string, code: string, newPassword: string) => Promise<void>
   signOut: () => Promise<void>
   refreshUser: () => Promise<void>
   getToken: () => Promise<string | null>
@@ -306,54 +305,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await refreshUser()
   }
 
-  const requestPasswordReset = async (email: string) => {
-    const res = await api.post('/api/auth/forgot-password', { email })
-    if (res.data?.success) {
-      return res.data
+  const requestPasswordReset = async (username: string): Promise<{ challengeToken: string; username: string }> => {
+    const res = await api.post('/api/auth/forgot-password', { username })
+    if (res.data?.success && res.data?.data) {
+      return res.data.data
     }
     throw new Error(res.data?.message || 'Failed to initiate password reset')
   }
 
-  const verifyResetToken = async (token: string) => {
-    const res = await api.get('/api/auth/verify-reset-token', { params: { token } })
-    if (res.data?.success && res.data?.data) {
-      return res.data.data
-    }
-    return { valid: false }
-  }
-
-  const completePasswordReset = async (token: string, newPassword: string): Promise<AuthLoginResponse> => {
-    const res = await api.post('/api/auth/reset-password', { token, newPassword })
-    if (res.data?.needsUsername) {
-      return {
-        needsUsername: true,
-        challengeToken: res.data.challengeToken,
-        email: res.data.email,
-        name: res.data.name,
-      }
-    }
-    if (res.data?.mfaRequired) {
-      return {
-        needsUsername: false,
-        mfaRequired: true,
-        mfaSetupRequired: !!res.data.mfaSetupRequired,
-        challengeToken: res.data.challengeToken,
-        qrCodeUrl: res.data.qrCodeUrl,
-        secret: res.data.secret,
-        email: res.data.email,
-        username: res.data.username,
-      }
-    }
+  const completePasswordReset = async (challengeToken: string, code: string, newPassword: string): Promise<void> => {
+    const res = await api.post('/api/auth/reset-password', { challengeToken, code, newPassword })
     if (res.data?.success && res.data?.data?.user) {
       setUser(formatUserProfile(res.data.data.user))
-      return {
-        needsUsername: false,
-        mfaRequired: false,
-        mfaSetupRequired: false,
-        challengeToken: '',
-        email: res.data.data.user.email,
-        username: res.data.data.user.username,
-      }
+      return
     }
     throw new Error(res.data?.message || 'Failed to complete password reset')
   }
@@ -387,7 +351,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setup2FA,
         confirm2FA,
         requestPasswordReset,
-        verifyResetToken,
         completePasswordReset,
         signOut,
         refreshUser,

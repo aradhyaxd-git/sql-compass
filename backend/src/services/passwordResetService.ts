@@ -1,85 +1,66 @@
-import crypto from 'crypto'
 import bcrypt from 'bcryptjs'
 import User from '../models/User.js'
+import { generateResetChallengeToken, verifyResetChallengeToken, generateSessionToken } from '../utils/tokenUtils.js'
+import { verifyTotpCode } from '../utils/totpUtils.js'
 import { logger } from '../utils/logger.js'
 
-const RESET_TOKEN_EXPIRES_MS = 15 * 60 * 1000
-
-export async function requestPasswordReset(
-  emailInput: string
-): Promise<{ success: boolean; message: string; resetToken?: string; expiresInMinutes: number }> {
-  const email = (emailInput || '').toLowerCase().trim()
-  if (!email) {
-    throw new Error('Email is required')
+export async function initiatePasswordReset(
+  usernameInput: string
+): Promise<{ challengeToken: string; username: string }> {
+  const username = (usernameInput || '').toLowerCase().trim()
+  if (!username) {
+    throw new Error('Username is required')
   }
 
-  const user = await User.findOne({ email })
-  const rawToken = crypto.randomBytes(32).toString('hex')
-  const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex')
-
-  if (user) {
-    user.passwordResetTokenHash = tokenHash
-    user.passwordResetExpires = new Date(Date.now() + RESET_TOKEN_EXPIRES_MS)
-    await user.save()
-    logger.info('Password reset token generated', { userId: user._id.toString() })
+  const user = await User.findOne({ username })
+  if (!user) {
+    throw new Error('No account found with this username')
   }
 
-  const isDev = process.env.NODE_ENV !== 'production'
+  if (!user.twoFactorEnabled || !user.twoFactorSecret) {
+    throw new Error('Two-factor authentication is required to reset password')
+  }
+
+  const challengeToken = generateResetChallengeToken(user._id.toString(), user.username)
+  logger.info('Password reset challenge initiated', { userId: user._id.toString(), username: user.username })
+
   return {
-    success: true,
-    message: 'If an account exists with this email address, password reset instructions have been generated.',
-    ...(isDev || !process.env.SMTP_HOST ? { resetToken: rawToken } : {}),
-    expiresInMinutes: 15,
-  }
-}
-
-export async function verifyPasswordResetToken(
-  token: string
-): Promise<{ valid: boolean; email?: string; remainingSeconds?: number }> {
-  if (!token || typeof token !== 'string') {
-    return { valid: false }
-  }
-
-  const tokenHash = crypto.createHash('sha256').update(token.trim()).digest('hex')
-  const user = await User.findOne({
-    passwordResetTokenHash: tokenHash,
-    passwordResetExpires: { $gt: new Date() },
-  }).select('+passwordResetExpires')
-
-  if (!user || !user.passwordResetExpires) {
-    return { valid: false }
-  }
-
-  const remainingSeconds = Math.max(0, Math.floor((user.passwordResetExpires.getTime() - Date.now()) / 1000))
-  return {
-    valid: true,
-    email: user.email,
-    remainingSeconds,
+    challengeToken,
+    username: user.username,
   }
 }
 
 export async function completePasswordReset(
-  token: string,
+  challengeToken: string,
+  code: string,
   newPassword: string
-): Promise<string> {
-  if (!token || typeof token !== 'string') {
-    throw new Error('Reset token is required')
+): Promise<{ token: string; user: any }> {
+  if (!challengeToken) {
+    throw new Error('Reset challenge token is required')
   }
+
+  const { sub: userId } = verifyResetChallengeToken(challengeToken)
 
   const normalizedPassword = (newPassword || '').trim()
   if (normalizedPassword.length < 8) {
     throw new Error('Password must be at least 8 characters long')
   }
 
-  const tokenHash = crypto.createHash('sha256').update(token.trim()).digest('hex')
-  const user = await User.findOne({
-    passwordResetTokenHash: tokenHash,
-    passwordResetExpires: { $gt: new Date() },
-  }).select('+passwordHash +passwordResetTokenHash +passwordResetExpires')
-
+  const user = await User.findById(userId).select('+twoFactorSecret +lastTotpUsed +passwordHash')
   if (!user) {
-    throw new Error('Password reset token is invalid or has expired')
+    throw new Error('User not found')
   }
+
+  if (!user.twoFactorSecret) {
+    throw new Error('Two-factor authentication secret not configured')
+  }
+
+  const isValidCode = verifyTotpCode(code, user.twoFactorSecret, user.lastTotpUsed)
+  if (!isValidCode) {
+    throw new Error('Invalid 6-digit authenticator code')
+  }
+
+  user.lastTotpUsed = code.trim()
 
   const salt = await bcrypt.genSalt(12)
   user.passwordHash = await bcrypt.hash(normalizedPassword, salt)
@@ -87,6 +68,19 @@ export async function completePasswordReset(
   user.passwordResetExpires = undefined
   await user.save()
 
-  logger.info('Password reset completed', { userId: user._id.toString() })
-  return user._id.toString()
+  logger.info('Password reset completed successfully via 2FA', { userId: user._id.toString() })
+
+  const token = generateSessionToken(user)
+  return {
+    token,
+    user: {
+      id: user._id.toString(),
+      email: user.email,
+      username: user.username,
+      name: user.name,
+      picture: user.picture,
+      role: user.role,
+      twoFactorEnabled: !!user.twoFactorEnabled,
+    },
+  }
 }
