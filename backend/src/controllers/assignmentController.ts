@@ -10,9 +10,8 @@ export const getAllAssignments = async (req: Request, res: Response): Promise<vo
       .lean()
 
     res.status(200).json({ success: true, data: assignments })
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error)
-    res.status(500).json({ success: false, message: msg })
+  } catch {
+    res.status(500).json({ success: false, message: 'Internal server error fetching assignments' })
   }
 }
 

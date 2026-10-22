@@ -34,6 +34,28 @@ const DANGEROUS_FUNCTIONS = new Set([
   'pg_advisory_unlock',
   'pg_advisory_unlock_all',
   'pg_advisory_unlock_shared',
+  'nextval',
+  'setval',
+  'currval',
+  'pg_ls_waldir',
+  'pg_ls_tmpdir',
+  'pg_ls_archive_statusdir',
+  'pg_ls_logicalmapdir',
+  'pg_ls_logicalsnapdir',
+  'pg_ls_replslotdir',
+  'pg_reload_conf',
+  'pg_rotate_logfile',
+])
+
+const DANGEROUS_TABLES = new Set([
+  'pg_stat_activity',
+  'pg_shadow',
+  'pg_authid',
+  'pg_stat_replication',
+  'pg_stat_wal',
+  'pg_stat_database',
+  'pg_user',
+  'pg_roles',
 ])
 
 const MAX_QUERY_LENGTH = 4000
@@ -80,6 +102,35 @@ function findDangerousFunction(node: unknown): string | null {
 
   for (const key of Object.keys(record)) {
     const dangerous = findDangerousFunction(record[key])
+    if (dangerous) {
+      return dangerous
+    }
+  }
+
+  return null
+}
+
+function findDangerousTable(node: unknown): string | null {
+  if (!node || typeof node !== 'object') {
+    return null
+  }
+
+  const record = node as Record<string, unknown>
+
+  if (record.type === 'table') {
+    let tableName = ''
+    if (typeof record.name === 'string') {
+      tableName = record.name.toLowerCase()
+    } else if (record.name && typeof record.name === 'object' && typeof (record.name as Record<string, unknown>).name === 'string') {
+      tableName = ((record.name as Record<string, unknown>).name as string).toLowerCase()
+    }
+    if (DANGEROUS_TABLES.has(tableName)) {
+      return tableName
+    }
+  }
+
+  for (const key of Object.keys(record)) {
+    const dangerous = findDangerousTable(record[key])
     if (dangerous) {
       return dangerous
     }
@@ -200,6 +251,14 @@ export function sanitizeSQL(sql: string, options: SanitizeOptions = {}): Sanitiz
     return {
       safe: false,
       reason: `Call to restricted function '${dangerousFn}' is blocked`,
+    }
+  }
+
+  const dangerousTable = findDangerousTable(statement)
+  if (dangerousTable) {
+    return {
+      safe: false,
+      reason: `Access to system table or view '${dangerousTable}' is blocked`,
     }
   }
 

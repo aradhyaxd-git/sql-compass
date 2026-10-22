@@ -7,6 +7,9 @@ export const generateAssignments = async (req: Request, res: Response): Promise<
   try {
     const { topic, count = 3, difficulty = 'medium', tableNames = ['employees'] } = req.body
 
+    const parsedCount = parseInt(String(count), 10)
+    const safeCount = Number.isInteger(parsedCount) ? Math.min(Math.max(parsedCount, 1), 5) : 3
+
     const runId = `gen_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`
 
     let schemaDetails = ''
@@ -19,7 +22,7 @@ export const generateAssignments = async (req: Request, res: Response): Promise<
     const state = await compiledGeneratorGraph.invoke(
       {
         topic: topic || 'SQL Joins and Aggregations',
-        count: Number(count) || 3,
+        count: safeCount,
         difficulty: (difficulty as 'easy' | 'medium' | 'hard') || 'medium',
         tableNames,
         schemaDetails,
@@ -39,9 +42,8 @@ export const generateAssignments = async (req: Request, res: Response): Promise<
         candidates: state.survivors,
       },
     })
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error)
-    res.status(500).json({ success: false, message: msg })
+  } catch {
+    res.status(500).json({ success: false, message: 'Internal server error generating assignments' })
   }
 }
 
@@ -74,8 +76,7 @@ export const resumeAssignmentGeneration = async (req: Request, res: Response): P
         approvedAssignments: resumedState.approvedAssignments,
       },
     })
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error)
-    res.status(500).json({ success: false, message: msg })
+  } catch {
+    res.status(500).json({ success: false, message: 'Internal server error resuming assignment generation' })
   }
 }

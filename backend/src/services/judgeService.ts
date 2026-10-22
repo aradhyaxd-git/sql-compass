@@ -219,9 +219,14 @@ export function compareResults(
   }
 }
 
-// Bounded LRU Reference Cache (Max 100 queries) with invalidation helper
+interface RefCacheEntry {
+  result: QueryResult
+  expiresAt: number
+}
+
+const REF_CACHE_TTL_MS = 15 * 60 * 1000 // 15 minutes
 const MAX_REF_CACHE_SIZE = 100
-const referenceQueryCache = new Map<string, QueryResult>()
+const referenceQueryCache = new Map<string, RefCacheEntry>()
 
 export function clearReferenceQueryCache(): void {
   referenceQueryCache.clear()
@@ -230,10 +235,12 @@ export function clearReferenceQueryCache(): void {
 export async function getReferenceQueryResult(referenceSql: string): Promise<QueryResult> {
   const cached = referenceQueryCache.get(referenceSql)
   if (cached) {
-    // Refresh LRU position
+    if (Date.now() < cached.expiresAt) {
+      referenceQueryCache.delete(referenceSql)
+      referenceQueryCache.set(referenceSql, cached)
+      return cached.result
+    }
     referenceQueryCache.delete(referenceSql)
-    referenceQueryCache.set(referenceSql, cached)
-    return cached
   }
 
   const result = await executeUserQuery(referenceSql)
@@ -241,7 +248,10 @@ export async function getReferenceQueryResult(referenceSql: string): Promise<Que
     const firstKey = referenceQueryCache.keys().next().value
     if (firstKey) referenceQueryCache.delete(firstKey)
   }
-  referenceQueryCache.set(referenceSql, result)
+  referenceQueryCache.set(referenceSql, {
+    result,
+    expiresAt: Date.now() + REF_CACHE_TTL_MS,
+  })
   return result
 }
 

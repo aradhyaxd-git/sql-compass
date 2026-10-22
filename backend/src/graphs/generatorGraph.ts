@@ -221,11 +221,13 @@ export async function persistNode(state: GeneratorStateType): Promise<Partial<Ge
         orderMatters: a.orderMatters,
       }))
       await Assignment.insertMany(docs)
+      return { status: 'completed' }
     } catch (e) {
-      logger.warn('MongoDB insert skipped or failed during assignment generation', {
+      logger.error('MongoDB insert failed during assignment generation', {
         event: 'generator_mongo_insert_error',
         error: e instanceof Error ? e.message : String(e),
       })
+      return { status: 'failed' }
     }
   }
 

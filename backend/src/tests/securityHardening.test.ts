@@ -52,6 +52,17 @@ async function runSecurityTests(): Promise<void> {
   const unionAttack = sanitizeSQL('SELECT 1 UNION SELECT pg_sleep(10)')
   assert.strictEqual(unionAttack.safe, false, 'UNION with pg_sleep must be blocked')
 
+  // SC-13: System tables and sequence manipulation functions must be blocked
+  const statActivityAttack = sanitizeSQL('SELECT * FROM pg_stat_activity')
+  assert.strictEqual(statActivityAttack.safe, false, 'SELECT from pg_stat_activity must be blocked')
+  assert.ok(statActivityAttack.reason?.includes('pg_stat_activity'))
+
+  const nextvalAttack = sanitizeSQL("SELECT nextval('my_seq')")
+  assert.strictEqual(nextvalAttack.safe, false, 'nextval must be blocked')
+
+  const setvalAttack = sanitizeSQL("SELECT setval('my_seq', 1)")
+  assert.strictEqual(setvalAttack.safe, false, 'setval must be blocked')
+
   console.log('[SUCCESS] securityHardening test suite passed successfully.')
 }
 

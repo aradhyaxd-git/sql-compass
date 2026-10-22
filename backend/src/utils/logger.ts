@@ -60,6 +60,13 @@ export const logger = winston.createLogger({
   ],
 })
 
+export const updateTraceUser = (userId: string): void => {
+  const store = traceStorage.getStore()
+  if (store) {
+    store.userId = userId
+  }
+}
+
 // Distributed tracing middleware: assigns or extracts Request IDs and populates AsyncLocalStorage
 export const distributedTracingMiddleware = (req: Request, res: Response, next: NextFunction): void => {
   const incomingRequestId = (req.headers['x-request-id'] as string) || (req.headers['x-correlation-id'] as string)

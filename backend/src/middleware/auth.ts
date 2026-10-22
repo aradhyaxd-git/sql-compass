@@ -1,5 +1,6 @@
 import { createClerkClient, verifyToken } from '@clerk/backend'
 import type { Request, Response, NextFunction } from 'express'
+import { updateTraceUser } from '../utils/logger.js'
 
 const clerk = createClerkClient({
   secretKey: process.env.CLERK_SECRET_KEY,
@@ -43,6 +44,7 @@ export const requireAuth = async (
       ...(process.env.CLIENT_ORIGIN ? { authorizedParties: [process.env.CLIENT_ORIGIN] } : {}),
     })
     req.userId = payload.sub
+    updateTraceUser(payload.sub)
     next()
   } catch {
     res.status(401).json({ success: false, message: 'Invalid or expired token' })
@@ -68,6 +70,7 @@ export const optionalAuth = async (
       ...(process.env.CLIENT_ORIGIN ? { authorizedParties: [process.env.CLIENT_ORIGIN] } : {}),
     })
     req.userId = payload.sub
+    updateTraceUser(payload.sub)
     next()
   } catch {
     req.userId = undefined
