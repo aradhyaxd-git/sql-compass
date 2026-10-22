@@ -4,6 +4,8 @@ import { useAuth } from '@clerk/react'
 import { useEffect } from 'react'
 import { setAuthToken, setGetTokenFn } from '@/services/api'
 
+import { ThemeProvider } from '@/context/ThemeContext'
+
 import Landing from '@/pages/LandingPage'
 import Auth from '@/pages/Auth'
 import Dashboard from '@/pages/Dashboard'
@@ -30,7 +32,6 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 export default function App() {
   const { getToken, isLoaded, isSignedIn } = useAuth()
 
-  // Set up token provider so axios can fetch fresh tokens
   useEffect(() => {
     if (!isLoaded || !isSignedIn) {
       setGetTokenFn(null)
@@ -38,7 +39,6 @@ export default function App() {
       return
     }
 
-    // Provide the getToken function to axios interceptor
     setGetTokenFn(async () => {
       try {
         const token = await getToken()
@@ -48,7 +48,6 @@ export default function App() {
       }
     })
 
-    // Also set initial token
     getToken()
       .then(token => {
         if (token) setAuthToken(token)
@@ -57,9 +56,10 @@ export default function App() {
   }, [isLoaded, isSignedIn])
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <Routes>
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <Routes>
 
           {/* Public */}
           <Route path="/" element={<Landing />} />
@@ -84,5 +84,6 @@ export default function App() {
         </Routes>
       </BrowserRouter>
     </QueryClientProvider>
+  </ThemeProvider>
   )
 }

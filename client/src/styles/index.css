@@ -1,44 +1,101 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=Courier+Prime:wght@400;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
-@theme {
+:root {
+  /* Common typography */
+  --font-display: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
 
-  --color-void:    #020208;
-  --color-hull:    #0a0a12;
-  --color-deck:    #0f0f1a;
-  --color-raised:  #141420;
+  /* Default Light Theme */
+  --bg-canvas: #f8fafc;
+  --bg-card: #ffffff;
+  --bg-subtle: #f1f5f9;
+  --bg-elevated: #ffffff;
+  --bg-panel: #ffffff;
+  --bg-input: #ffffff;
 
-  --color-primary:       #6366f1;
-  --color-primary-light: #818cf8;
-  --color-primary-dark:  #4f46e5;
-  --color-primary-glow:  rgba(99,102,241,0.15);
+  --border-subtle: #f1f5f9;
+  --border-default: #e2e8f0;
+  --border-active: #0d9488;
+  --border-accent: #0284c7;
 
-  --color-signal:        #06b6d4;
-  --color-signal-muted:  rgba(6,182,212,0.1);
-  --color-online:  #10b981;
-  --color-alert:   #f43f5e;
-  --color-caution: #f59e0b;
-  --color-xp:      #fbbf24;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --text-subtle: #94a3b8;
 
-  --color-text-primary:   #f8fafc;
-  --color-text-secondary: #94a3b8;
-  --color-text-muted:     #334155;
-  --color-text-dim:       #1e293b;
+  --brand-primary: #0d9488;
+  --brand-hover: #0f766e;
+  --brand-light: #ccfbf1;
+  --brand-muted: rgba(13, 148, 136, 0.08);
+  --brand-border: rgba(13, 148, 136, 0.2);
 
-  --color-border:        rgba(255,255,255,0.06);
-  --color-border-active: rgba(99,102,241,0.4);
-  --color-border-signal: rgba(6,182,212,0.3);
+  --accent-cyan: #0284c7;
+  --accent-cyan-light: #e0f2fe;
 
-  --font-display: 'Plus Jakarta Sans', sans-serif;
-  --font-sans:    'DM Sans', sans-serif;
-  --font-mono:    'JetBrains Mono', monospace;
-  
-  --shadow-panel:   0 0 0 1px rgba(255,255,255,0.06), 0 16px 48px rgba(0,0,0,0.6);
-  --shadow-primary: 0 0 32px rgba(99,102,241,0.25);
-  --shadow-signal:  0 0 32px rgba(6,182,212,0.2);
+  --status-online: #10b981;
+  --status-online-bg: #ecfdf5;
+  --status-warning: #d97706;
+  --status-warning-bg: #fffbeb;
+  --status-danger: #e11d48;
+  --status-danger-bg: #fff1f2;
+  --status-xp: #b45309;
+  --status-xp-bg: #fef3c7;
+
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
+[data-theme='dark'],
+.dark {
+  /* Dark Theme */
+  --bg-canvas: #06090e;
+  --bg-card: #0d121c;
+  --bg-subtle: #131b2a;
+  --bg-elevated: #182235;
+  --bg-panel: #0d131f;
+  --bg-input: #090d15;
+
+  --border-subtle: rgba(255, 255, 255, 0.05);
+  --border-default: rgba(255, 255, 255, 0.08);
+  --border-active: #14b8a6;
+  --border-accent: #38bdf8;
+
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --text-subtle: #64748b;
+
+  --brand-primary: #14b8a6;
+  --brand-hover: #2dd4bf;
+  --brand-light: rgba(20, 184, 166, 0.15);
+  --brand-muted: rgba(20, 184, 166, 0.08);
+  --brand-border: rgba(20, 184, 166, 0.25);
+
+  --accent-cyan: #38bdf8;
+  --accent-cyan-light: rgba(56, 189, 248, 0.12);
+
+  --status-online: #10b981;
+  --status-online-bg: rgba(16, 185, 129, 0.1);
+  --status-warning: #f59e0b;
+  --status-warning-bg: rgba(245, 158, 11, 0.1);
+  --status-danger: #f43f5e;
+  --status-danger-bg: rgba(244, 63, 94, 0.1);
+  --status-xp: #fbbf24;
+  --status-xp-bg: rgba(251, 191, 36, 0.12);
+
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
 html {
   scroll-behavior: smooth;
@@ -47,50 +104,57 @@ html {
 }
 
 body {
-  background: #020208;
-  color: #f8fafc;
-  font-family: 'Inter', sans-serif;
+  background: var(--bg-canvas);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
   min-height: 100vh;
   overflow-x: hidden;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-::-webkit-scrollbar { width: 4px; height: 4px; }
-::-webkit-scrollbar-track { background: #020208; }
-::-webkit-scrollbar-thumb { background: #0f0f1a; border-radius: 999px; }
-::-webkit-scrollbar-thumb:hover { background: #141420; }
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
 
-::-webkit-scrollbar { width: 4px; height: 4px; }
-::-webkit-scrollbar-track { background: #020208; }
-::-webkit-scrollbar-thumb { background: #0f0f1a; border-radius: 999px; }
-::-webkit-scrollbar-thumb:hover { background: #141420; }
+::-webkit-scrollbar-track {
+  background: transparent;
+}
 
-::selection { background: rgba(99,102,241,0.3); color: #f8fafc; }
+::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-subtle);
+}
+
+::selection {
+  background: var(--brand-light);
+  color: var(--brand-primary);
+}
 
 /* React Resizable Panels */
 [data-panel-group] {
-  background: #020208;
+  background: var(--bg-canvas);
 }
 
 [data-panel] {
-  background: #090914;
+  background: var(--bg-panel);
   overflow: hidden;
 }
 
 [data-panel-resize-handle] {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--border-default);
   will-change: background;
   transition: background 0.15s ease;
 }
 
 [data-panel-resize-handle]:hover {
-  background: rgba(99, 102, 241, 0.15);
+  background: var(--brand-primary);
 }
 
 [data-panel-resize-handle-active] {
-  background: rgba(99, 102, 241, 0.25);
-}
-
-[data-panel-resize-handle][data-panel-resize-handle-enabled]:hover::after,
-[data-panel-resize-handle][data-panel-resize-handle-enabled]:active::after {
-  opacity: 1;
+  background: var(--brand-primary);
 }

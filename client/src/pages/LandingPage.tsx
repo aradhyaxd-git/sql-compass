@@ -7,33 +7,35 @@ import {
   useSpring,
 } from "framer-motion";
 import { Show } from "@clerk/react";
+import { Sun, Moon } from "lucide-react";
+import { useTheme } from "@/context/ThemeContext";
 import Footer from "@/components/layout/Footer";
 
 const C = {
-  void: "#01010a",
-  hull: "#090914",
-  deck: "#0e0e1c",
-  raised: "#141428",
-  primary: "#6366f1",
-  pLight: "#818cf8",
-  pGlow: "rgba(99,102,241,0.18)",
-  signal: "#22d3ee",
-  sGlow: "rgba(34,211,238,0.12)",
-  online: "#10d98a",
-  alert: "#fb4469",
-  xp: "#fbbf24",
-  t1: "#f1f5f9", 
-  t2: "#94a3b8",
-  t3: "#4a5568", 
-  t4: "#1e2a40", 
-  border: "rgba(255,255,255,0.07)",
-  borderA: "rgba(99,102,241,0.4)",
+  void: "var(--bg-canvas)",
+  hull: "var(--bg-card)",
+  deck: "var(--bg-subtle)",
+  raised: "var(--bg-elevated)",
+  primary: "var(--brand-primary)",
+  pLight: "var(--brand-hover)",
+  pGlow: "var(--brand-light)",
+  signal: "var(--accent-cyan)",
+  sGlow: "var(--accent-cyan-light)",
+  online: "var(--status-online)",
+  alert: "var(--status-danger)",
+  xp: "var(--status-xp)",
+  t1: "var(--text-primary)", 
+  t2: "var(--text-secondary)",
+  t3: "var(--text-muted)", 
+  t4: "var(--text-subtle)", 
+  border: "var(--border-default)",
+  borderA: "var(--brand-border)",
 };
 const F = {
-  display: "'Plus Jakarta Sans', sans-serif",
-  ui: "'JetBrains Mono', monospace",
-  sql: "'Courier Prime', 'Courier New', monospace",
-  body: "'DM Sans', sans-serif",
+  display: "var(--font-display)",
+  ui: "var(--font-mono)",
+  sql: "'JetBrains Mono', monospace",
+  body: "var(--font-sans)",
 };
 
 const Icon = {
@@ -510,6 +512,7 @@ function TiltCard({
 }
 
 function LandingNav() {
+  const { theme, toggleTheme } = useTheme();
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 20);
@@ -530,14 +533,19 @@ function LandingNav() {
         alignItems: "center",
         justifyContent: "space-between",
         padding: "0 36px",
-        background: scrolled ? "rgba(1,1,10,0.92)" : "rgba(1,1,10,0.4)",
+        background: "var(--bg-card)",
+        borderBottom: "1px solid var(--border-default)",
+        boxShadow: scrolled ? "var(--shadow-md)" : "none",
         backdropFilter: "blur(20px)",
-        borderBottom: `1px solid ${scrolled ? C.border : "transparent"}`,
-        transition: "all 0.4s",
+        transition: "all 0.3s ease",
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
-        <Icon.Compass size={22} />
+        <img
+          src="/logo.png"
+          alt="SQL Compass Logo"
+          style={{ width: 26, height: 26, objectFit: "contain" }}
+        />
         <span
           style={{
             fontFamily: F.display,
@@ -549,34 +557,41 @@ function LandingNav() {
         >
           SQL Compass
         </span>
-        <span
-          style={{
-            fontFamily: F.ui,
-            fontSize: 9,
-            letterSpacing: "0.12em",
-            color: C.online,
-            background: "rgba(0,229,160,0.07)",
-            border: "1px solid rgba(0,229,160,0.18)",
-            padding: "2px 7px",
-            borderRadius: 3,
-          }}
-        >
-          BETA
-        </span>
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <Pulse />
-        <span
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginRight: 8 }}>
+          <Pulse />
+          <span
+            style={{
+              fontFamily: F.ui,
+              fontSize: 11,
+              color: C.t3,
+              letterSpacing: "0.04em",
+            }}
+          >
+            PostgreSQL Sandbox Ready
+          </span>
+        </div>
+
+        <button
+          onClick={toggleTheme}
+          aria-label="Toggle theme"
           style={{
-            fontFamily: F.ui,
-            fontSize: 10,
-            color: C.t4,
-            letterSpacing: "0.08em",
-            marginRight: 16,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 32,
+            height: 32,
+            borderRadius: 6,
+            background: "var(--bg-subtle)",
+            border: "1px solid var(--border-default)",
+            color: C.t2,
+            cursor: "pointer",
+            transition: "all 0.15s ease",
           }}
         >
-          SYS.ONLINE
-        </span>
+          {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+        </button>
         <Show when="signed-out">
           <Link to="/auth" style={{ textDecoration: "none" }}>
             <motion.button

@@ -9,7 +9,7 @@ export default function Auth() {
   if (isSignedIn) return <Navigate to="/dashboard" replace />
 
   return (
-    <div className="min-h-screen bg-canvas flex items-center justify-center">
+    <div style={{ minHeight: '100vh', background: 'var(--bg-canvas)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <SignIn fallbackRedirectUrl="/dashboard" />
     </div>
   )

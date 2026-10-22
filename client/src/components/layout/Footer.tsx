@@ -1,153 +1,167 @@
-import { motion } from 'framer-motion'
-
-function StatusIndicator() {
-  return (
-    <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-      <motion.span
-        style={{ position: 'relative', width: 7, height: 7, borderRadius: '50%', background: '#10b981' }}
-        animate={{ opacity: [0.5, 1, 0.5] }}
-        transition={{ duration: 1, repeat: Infinity }}
-      />
-      <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#10b981', letterSpacing: '0.08em' }}>
-        433 ONLINE
-      </span>
-    </span>
-  )
-}
+import { Link } from 'react-router-dom'
+import { Database, ShieldCheck, Cpu } from 'lucide-react'
 
 export default function Footer() {
   const currentYear = new Date().getFullYear()
 
-  const footerLinks = [
-    { label: 'SGN_ACCESS', href: '#' },
-    { label: 'LOGS', href: '#' },
-    { label: 'MAN_PAGES', href: '#' },
-    { label: 'SITEMAP', href: '#' },
-  ]
-
   return (
     <footer style={{
-      background: 'linear-gradient(to bottom, rgba(15,15,35,0), rgba(9,9,20,0.95))',
-      borderTop: '1px solid rgba(255,255,255,0.05)',
-      padding: '32px 28px',
+      background: 'var(--bg-card)',
+      borderTop: '1px solid var(--border-default)',
+      padding: '40px 24px 28px',
       marginTop: 'auto',
+      transition: 'background-color 0.2s ease, border-color 0.2s ease',
     }}>
-      {/* Top Section - Title and Status */}
       <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: 24,
-        paddingBottom: 16,
-        borderBottom: '1px dashed rgba(255,255,255,0.08)',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{
-            fontFamily: "'JetBrains Mono', monospace",
-            fontSize: 13,
-            fontWeight: 600,
-            color: '#f1f5f9',
-            letterSpacing: '0.15em',
-          }}>
-            SQL_COMPASS.EXE
-          </span>
-          <motion.span
-            style={{
-              display: 'inline-block',
-              padding: '2px 8px',
-              borderRadius: 3,
-              background: 'rgba(16,185,138,0.15)',
-              border: '1px solid rgba(16,185,138,0.3)',
-              fontFamily: "'JetBrains Mono', monospace",
-              fontSize: 9,
-              color: '#10b981',
-              letterSpacing: '0.1em',
-            }}
-            animate={{ opacity: [0.6, 1, 0.6] }}
-            transition={{ duration: 2, repeat: Infinity }}
-          >
-            433 ONLINE
-          </motion.span>
-        </div>
-        <StatusIndicator />
-      </div>
-
-      {/* System Information */}
-      <div style={{
+        maxWidth: 1200,
+        margin: '0 auto',
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-        gap: 20,
-        marginBottom: 24,
+        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+        gap: 32,
+        marginBottom: 32,
       }}>
-        <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: '#64748b', lineHeight: 1.6 }}>
-          <div style={{ color: '#94a3b8', marginBottom: 6 }}>STANDARD OPERATING PROCEDURE:</div>
-          <div>v1.2.3-AMETHYST</div>
-          <div>KERNEL INITIALIZED - ALL SYSTEMS NOMINAL</div>
+        {/* Brand column */}
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+            <img
+              src="/logo.png"
+              alt="SQL Compass"
+              style={{ width: 24, height: 24, objectFit: 'contain' }}
+            />
+            <span style={{
+              fontFamily: 'var(--font-display)',
+              fontWeight: 700,
+              fontSize: 15,
+              color: 'var(--text-primary)',
+              letterSpacing: '-0.02em',
+            }}>
+              SQL Compass
+            </span>
+          </div>
+          <p style={{
+            fontFamily: 'var(--font-sans)',
+            fontSize: 13,
+            color: 'var(--text-secondary)',
+            lineHeight: 1.6,
+            maxWidth: 280,
+          }}>
+            Interactive SQL mastery platform with deterministic evaluation, real PostgreSQL isolation, and adaptive guidance.
+          </p>
         </div>
 
-        <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: '#64748b', lineHeight: 1.6 }}>
-          <div style={{ color: '#94a3b8', marginBottom: 6 }}>UPTIME:</div>
-          <div>99.9% • {new Date().toLocaleDateString()}</div>
-          <div>VERSION: v4.1.2-AMETHYST</div>
-        </div>
-
-        <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: '#64748b', lineHeight: 1.6 }}>
-          <div style={{ color: '#94a3b8', marginBottom: 6 }}>BUILD INFO:</div>
-          <div>© {currentYear} SQL COMPASS • BUILD 2841</div>
-          <div>ENCRYPTED ISO-7 • AES-256</div>
-        </div>
-      </div>
-
-      {/* Navigation Links */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 24,
-        paddingTop: 16,
-        borderTop: '1px dashed rgba(255,255,255,0.08)',
-        flexWrap: 'wrap',
-      }}>
-        {footerLinks.map((link) => (
-          <a
-            key={link.label}
-            href={link.href}
-            style={{
-              fontFamily: "'JetBrains Mono', monospace",
-              fontSize: 10,
-              color: '#64748b',
+        {/* Resources */}
+        <div>
+          <div style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 11,
+            fontWeight: 600,
+            color: 'var(--text-muted)',
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            marginBottom: 14,
+          }}>
+            Platform
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <Link to="/dashboard" style={{
+              fontSize: 13,
+              color: 'var(--text-secondary)',
               textDecoration: 'none',
-              letterSpacing: '0.08em',
-              transition: 'color 0.15s',
-              cursor: 'pointer',
-            }}
-            onMouseEnter={(e) => {
-              (e.target as HTMLElement).style.color = '#22d3ee'
-            }}
-            onMouseLeave={(e) => {
-              (e.target as HTMLElement).style.color = '#64748b'
-            }}
-          >
-            {link.label}
-          </a>
-        ))}
+              fontFamily: 'var(--font-sans)',
+            }}>
+              Challenges & Missions
+            </Link>
+            <Link to="/profile" style={{
+              fontSize: 13,
+              color: 'var(--text-secondary)',
+              textDecoration: 'none',
+              fontFamily: 'var(--font-sans)',
+            }}>
+              Flight Log & Progress
+            </Link>
+          </div>
+        </div>
+
+        {/* Architecture */}
+        <div>
+          <div style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 11,
+            fontWeight: 600,
+            color: 'var(--text-muted)',
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            marginBottom: 14,
+          }}>
+            Sandbox Guardrails
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13, color: 'var(--text-secondary)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <ShieldCheck size={14} color="var(--status-online)" />
+              <span>Read-Only AST Sanitizer</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Database size={14} color="var(--brand-primary)" />
+              <span>PostgreSQL 16 Engine</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Cpu size={14} color="var(--accent-cyan)" />
+              <span>Multi-Tier Hint Agent</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Keyboard Shortcuts */}
+        <div>
+          <div style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 11,
+            fontWeight: 600,
+            color: 'var(--text-muted)',
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            marginBottom: 14,
+          }}>
+            Shortcuts
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12, color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: 200 }}>
+              <span>Execute Query</span>
+              <kbd style={{
+                background: 'var(--bg-subtle)',
+                border: '1px solid var(--border-default)',
+                borderRadius: 4,
+                padding: '2px 6px',
+                fontSize: 10,
+              }}>
+                Cmd + Enter
+              </kbd>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Bottom Status Bar */}
       <div style={{
-        marginTop: 16,
-        paddingTop: 12,
-        borderTop: '1px dashed rgba(255,255,255,0.06)',
+        maxWidth: 1200,
+        margin: '0 auto',
+        paddingTop: 16,
+        borderTop: '1px solid var(--border-subtle)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        fontSize: 9,
-        fontFamily: "'JetBrains Mono', monospace",
-        color: '#475569',
-        letterSpacing: '0.06em',
+        flexWrap: 'wrap',
+        gap: 12,
+        fontSize: 12,
+        fontFamily: 'var(--font-sans)',
+        color: 'var(--text-muted)',
       }}>
-        <span>SYS_RUNTIME_COMPASS • READY</span>
-        <span>BUILD: E971-3FF • 248-KB</span>
+        <div>
+          © {currentYear} SQL Compass. Precision database learning.
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--font-mono)', fontSize: 11 }}>
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--status-online)', display: 'inline-block' }} />
+          <span>PostgreSQL Sandbox Ready</span>
+        </div>
       </div>
     </footer>
   )

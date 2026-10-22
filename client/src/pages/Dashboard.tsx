@@ -1,322 +1,420 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useUser } from '@clerk/react'
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
-import { Compass } from 'lucide-react'
+import { Search, Sparkles, CheckCircle2, ChevronRight, Award } from 'lucide-react'
 import { useAssignments } from '@/hooks/useAssignments'
+import { useUserStats } from '@/hooks/useProfile'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
-import type { Difficulty } from '@/types/assignment.types'
-
-
-function StatusDot() {
-  return (
-    <span style={{ position: 'relative', display: 'inline-flex', width: 7, height: 7 }}>
-      <motion.span
-        style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: '#10b981', opacity: 0.35 }}
-        animate={{ scale: [1, 2, 1] }}
-        transition={{ duration: 2.5, repeat: Infinity }}
-      />
-      <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#10b981', position: 'relative' }} />
-    </span>
-  )
-}
-
-const DIFFICULTY_CONFIG: Record<Difficulty, { color: string; bg: string; border: string; label: string }> = {
-  easy: { color: '#10b981', bg: 'rgba(16,185,129,0.08)',  border: 'rgba(16,185,129,0.2)',  label: 'RECON' },
-  medium: { color: '#f59e0b', bg: 'rgba(245,158,11,0.08)',  border: 'rgba(245,158,11,0.2)',  label: 'STRIKE' },
-  hard:{ color: '#f43f5e', bg: 'rgba(244,63,94,0.08)',   border: 'rgba(244,63,94,0.2)',   label: 'ASSAULT' },
-}
+import type { Difficulty, Assignment } from '@/types/assignment.types'
 
 type Filter = 'all' | Difficulty
 
+const DIFFICULTY_META: Record<Difficulty, { label: string; color: string; bg: string; border: string }> = {
+  easy: {
+    label: 'Foundations',
+    color: 'var(--status-online)',
+    bg: 'var(--status-online-bg)',
+    border: 'rgba(16, 185, 129, 0.25)',
+  },
+  medium: {
+    label: 'Intermediate',
+    color: 'var(--status-warning)',
+    bg: 'var(--status-warning-bg)',
+    border: 'rgba(245, 158, 11, 0.25)',
+  },
+  hard: {
+    label: 'Advanced',
+    color: 'var(--status-danger)',
+    bg: 'var(--status-danger-bg)',
+    border: 'rgba(244, 63, 94, 0.25)',
+  },
+}
 
-function MissionCard({ assignment, index }: { assignment: any; index: number }) {
-  const diff = DIFFICULTY_CONFIG[assignment.difficulty as Difficulty]
+function ChallengeCard({ assignment, index }: { assignment: Assignment; index: number }) {
+  const meta = DIFFICULTY_META[assignment.difficulty]
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 16 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, delay: index * 0.05, ease: 'easeOut' }}
+      transition={{ duration: 0.25, delay: Math.min(index * 0.03, 0.3), ease: [0.16, 1, 0.3, 1] }}
     >
-      <Link to={`/attempt/${assignment._id}`} style={{ textDecoration: 'none', display: 'block' }}>
-        <motion.div
-          whileHover={{ y: -2, borderColor: 'rgba(99,102,241,0.3)' }}
+      <Link to={`/attempt/${assignment._id}`} style={{ textDecoration: 'none', display: 'block', height: '100%' }}>
+        <div
           style={{
             padding: '20px 22px',
-            background: '#0a0a12',
-            border: '1px solid rgba(255,255,255,0.06)',
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border-default)',
             borderRadius: 10,
             cursor: 'pointer',
-            transition: 'border-color 0.2s',
+            transition: 'border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
             position: 'relative',
-            overflow: 'hidden',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = 'var(--brand-primary)'
+            e.currentTarget.style.transform = 'translateY(-2px)'
+            e.currentTarget.style.boxShadow = 'var(--shadow-md)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = 'var(--border-default)'
+            e.currentTarget.style.transform = 'translateY(0)'
+            e.currentTarget.style.boxShadow = 'none'
           }}
         >
-          
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-            <span style={{
-              fontFamily: 'JetBrains Mono, monospace',
-              fontSize: 10, letterSpacing: '0.1em',
-              color: diff.color,
-              background: diff.bg,
-              border: `1px solid ${diff.border}`,
-              padding: '2px 8px', borderRadius: 4,
-            }}>
-              {diff.label}
-            </span>
-            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: '#1e293b' }}>
-              #{String(index + 1).padStart(3, '0')}
-            </span>
-          </div>
-
-         
-
-          <h3 style={{
-            fontFamily: 'Space Grotesk, sans-serif',
-            fontWeight: 600, fontSize: 15,
-            color: '#f8fafc', marginBottom: 8,
-            letterSpacing: '-0.01em', lineHeight: 1.3,
-          }}>
-            {assignment.title}
-          </h3>
-
-
-          <p style={{
-            fontSize: 12, color: '#475569',
-            lineHeight: 1.6, marginBottom: 16,
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-          }}>
-            {assignment.description}
-          </p>
-
-
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {assignment.tags?.slice(0, 3).map((tag: string) => (
-              <span key={tag} style={{
-                fontFamily: 'JetBrains Mono, monospace',
-                fontSize: 10, color: '#334155',
-                background: '#0f0f1a',
-                border: '1px solid rgba(255,255,255,0.05)',
-                padding: '2px 7px', borderRadius: 4,
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <span style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: 11,
+                fontWeight: 600,
+                color: meta.color,
+                background: meta.bg,
+                border: `1px solid ${meta.border}`,
+                padding: '2px 8px',
+                borderRadius: 4,
+                letterSpacing: '0.04em',
               }}>
-                {tag}
+                {meta.label}
               </span>
-            ))}
+              <span style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: 11,
+                color: 'var(--text-muted)',
+              }}>
+                #{String(index + 1).padStart(3, '0')}
+              </span>
+            </div>
+
+            <h3 style={{
+              fontFamily: 'var(--font-display)',
+              fontWeight: 600,
+              fontSize: 16,
+              color: 'var(--text-primary)',
+              marginBottom: 8,
+              letterSpacing: '-0.01em',
+              lineHeight: 1.35,
+            }}>
+              {assignment.title}
+            </h3>
+
+            <p style={{
+              fontSize: 13,
+              color: 'var(--text-secondary)',
+              lineHeight: 1.55,
+              marginBottom: 16,
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+              fontFamily: 'var(--font-sans)',
+            }}>
+              {assignment.description}
+            </p>
           </div>
 
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 12, borderTop: '1px solid var(--border-subtle)' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {assignment.tags?.slice(0, 3).map((tag: string) => (
+                <span
+                  key={tag}
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 11,
+                    color: 'var(--text-secondary)',
+                    background: 'var(--bg-subtle)',
+                    border: '1px solid var(--border-default)',
+                    padding: '2px 6px',
+                    borderRadius: 4,
+                  }}
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
 
-          <div style={{
-            position: 'absolute', right: 16, bottom: 16,
-            width: 28, height: 28, borderRadius: 6,
-            background: 'rgba(99,102,241,0.08)',
-            border: '1px solid rgba(99,102,241,0.15)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <span style={{ color: '#6366f1', fontSize: 13 }}>→</span>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 26,
+              height: 26,
+              borderRadius: 6,
+              background: 'var(--brand-muted)',
+              color: 'var(--brand-primary)',
+            }}>
+              <ChevronRight size={14} />
+            </div>
           </div>
-        </motion.div>
+        </div>
       </Link>
     </motion.div>
   )
 }
 
-
-function MissionSkeleton({ index }: { index: number }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ delay: index * 0.04 }}
-      style={{
-        padding: '20px 22px',
-        background: '#0a0a12',
-        border: '1px solid rgba(255,255,255,0.06)',
-        borderRadius: 10,
-      }}
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 14 }}>
-        <motion.div
-          animate={{ opacity: [0.3, 0.6, 0.3] }}
-          transition={{ duration: 1.5, repeat: Infinity }}
-          style={{ width: 60, height: 18, borderRadius: 4, background: '#0f0f1a' }}
-        />
-        <motion.div
-          animate={{ opacity: [0.3, 0.6, 0.3] }}
-          transition={{ duration: 1.5, repeat: Infinity, delay: 0.2 }}
-          style={{ width: 32, height: 18, borderRadius: 4, background: '#0f0f1a' }}
-        />
-      </div>
-      <motion.div
-        animate={{ opacity: [0.3, 0.6, 0.3] }}
-        transition={{ duration: 1.5, repeat: Infinity, delay: 0.1 }}
-        style={{ width: '75%', height: 18, borderRadius: 4, background: '#0f0f1a', marginBottom: 10 }}
-      />
-      <motion.div
-        animate={{ opacity: [0.3, 0.6, 0.3] }}
-        transition={{ duration: 1.5, repeat: Infinity, delay: 0.15 }}
-        style={{ width: '90%', height: 13, borderRadius: 4, background: '#0f0f1a', marginBottom: 6 }}
-      />
-      <motion.div
-        animate={{ opacity: [0.3, 0.6, 0.3] }}
-        transition={{ duration: 1.5, repeat: Infinity, delay: 0.2 }}
-        style={{ width: '60%', height: 13, borderRadius: 4, background: '#0f0f1a', marginBottom: 16 }}
-      />
-      <div style={{ display: 'flex', gap: 6 }}>
-        {[40, 52, 44].map((w, i) => (
-          <motion.div
-            key={i}
-            animate={{ opacity: [0.3, 0.6, 0.3] }}
-            transition={{ duration: 1.5, repeat: Infinity, delay: 0.05 * i }}
-            style={{ width: w, height: 20, borderRadius: 4, background: '#0f0f1a' }}
-          />
-        ))}
-      </div>
-    </motion.div>
-  )
-}
-
-
-
 export default function Dashboard() {
   const { user } = useUser()
   const [filter, setFilter] = useState<Filter>('all')
-  const { data: assignments, isLoading, error, refetch } = useAssignments()
-
-  const filtered = assignments?.filter(a => filter === 'all' || a.difficulty === filter) ?? []
+  const [searchQuery, setSearchQuery] = useState('')
+  const { data: assignments, isLoading, error } = useAssignments()
+  const { data: stats } = useUserStats()
 
   const FILTERS: { key: Filter; label: string }[] = [
-    { key: 'all',    label: 'All Missions' },
-    { key: 'easy',   label: 'Recon' },
-    { key: 'medium', label: 'Strike' },
-    { key: 'hard',   label: 'Assault' },
+    { key: 'all', label: 'All Challenges' },
+    { key: 'easy', label: 'Foundations' },
+    { key: 'medium', label: 'Intermediate' },
+    { key: 'hard', label: 'Advanced' },
   ]
+
+  const filtered = useMemo(() => {
+    if (!assignments) return []
+    return assignments.filter((a) => {
+      const matchesDifficulty = filter === 'all' || a.difficulty === filter
+      const matchesSearch =
+        searchQuery.trim() === '' ||
+        a.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        a.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        a.tags?.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()))
+      return matchesDifficulty && matchesSearch
+    })
+  }, [assignments, filter, searchQuery])
 
   return (
     <>
       <Navbar />
-      <main style={{ minHeight: '100vh', background: '#020208', paddingTop: 52, display: 'flex', flexDirection: 'column' }}>
-
+      <main style={{
+        minHeight: '100vh',
+        background: 'var(--bg-canvas)',
+        paddingTop: 54,
+        display: 'flex',
+        flexDirection: 'column',
+        transition: 'background-color 0.2s ease',
+      }}>
+        {/* Header Hero Banner */}
         <div style={{
-          borderBottom: '1px solid rgba(255,255,255,0.05)',
-          padding: '32px 32px 24px',
+          borderBottom: '1px solid var(--border-default)',
+          background: 'var(--bg-card)',
+          padding: '36px 24px 28px',
+          transition: 'background-color 0.2s ease, border-color 0.2s ease',
         }}>
-          <div style={{ maxWidth: 1280, margin: '0 auto' }}>
-
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
+          <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 20, marginBottom: 28 }}>
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                  <StatusDot />
-                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: '#334155', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                    Mission Control
-                  </span>
+                <div style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '3px 8px',
+                  borderRadius: 4,
+                  background: 'var(--brand-muted)',
+                  border: '1px solid var(--brand-border)',
+                  color: 'var(--brand-primary)',
+                  fontSize: 11,
+                  fontFamily: 'var(--font-mono)',
+                  marginBottom: 10,
+                  letterSpacing: '0.04em',
+                }}>
+                  <Sparkles size={12} />
+                  <span>CURATED PRACTICE TRACK</span>
                 </div>
-                <h1 style={{ fontFamily: 'Space Grotesk, sans-serif', fontWeight: 700, fontSize: 24, color: '#f8fafc', letterSpacing: '-0.02em' }}>
-                  {user?.firstName ? `Welcome back, ${user.firstName}.` : 'Mission Control.'}
+                <h1 style={{
+                  fontFamily: 'var(--font-display)',
+                  fontWeight: 700,
+                  fontSize: 26,
+                  color: 'var(--text-primary)',
+                  letterSpacing: '-0.02em',
+                }}>
+                  {user?.firstName ? `Welcome back, ${user.firstName}` : 'SQL Challenges & Missions'}
                 </h1>
-                <p style={{ fontSize: 13, color: '#334155', marginTop: 4, fontFamily: 'Inter, sans-serif' }}>
-                  Select a mission to begin your sortie.
+                <p style={{
+                  fontSize: 14,
+                  color: 'var(--text-secondary)',
+                  marginTop: 6,
+                  fontFamily: 'var(--font-sans)',
+                  maxWidth: 600,
+                  lineHeight: 1.5,
+                }}>
+                  Real PostgreSQL schema execution, automated AST security enforcement, and progressive AI hints.
                 </p>
               </div>
 
-              <div style={{
-                padding: '12px 20px',
-                background: '#0a0a12',
-                border: '1px solid rgba(255,255,255,0.06)',
-                borderRadius: 10,
-                textAlign: 'right',
-              }}>
-                <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: '#334155', marginBottom: 4, letterSpacing: '0.08em' }}>
-                  SQL RANK
+              {/* Progress Summary Cards */}
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                <div style={{
+                  padding: '12px 18px',
+                  background: 'var(--bg-subtle)',
+                  border: '1px solid var(--border-default)',
+                  borderRadius: 8,
+                  minWidth: 120,
+                }}>
+                  <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', marginBottom: 2 }}>
+                    SOLVED
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <CheckCircle2 size={16} color="var(--status-online)" />
+                    <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>
+                      {stats?.missionsCompleted ?? 0}
+                    </span>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                      / {assignments?.length ?? 31}
+                    </span>
+                  </div>
                 </div>
-                <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontWeight: 700, fontSize: 16, color: '#818cf8' }}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                    <Compass size={14} />
-                    Explorer
-                  </span>
+
+                <div style={{
+                  padding: '12px 18px',
+                  background: 'var(--bg-subtle)',
+                  border: '1px solid var(--border-default)',
+                  borderRadius: 8,
+                  minWidth: 120,
+                }}>
+                  <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', marginBottom: 2 }}>
+                    EXPERIENCE
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Award size={16} color="var(--status-xp)" />
+                    <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>
+                      {stats?.totalXP ?? 0}
+                    </span>
+                    <span style={{ fontSize: 11, color: 'var(--status-xp)', fontFamily: 'var(--font-mono)' }}>
+                      XP
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: 4 }}>
-              {FILTERS.map(({ key, label }) => {
-                const active = filter === key
-                return (
-                  <button
-                    key={key}
-                    onClick={() => setFilter(key)}
-                    style={{
-                      padding: '6px 16px', borderRadius: 6,
-                      fontFamily: 'Inter, sans-serif', fontSize: 12, fontWeight: active ? 500 : 400,
-                      color: active ? '#f8fafc' : '#475569',
-                      background: active ? 'rgba(99,102,241,0.1)' : 'transparent',
-                      border: active ? '1px solid rgba(99,102,241,0.2)' : '1px solid transparent',
-                      cursor: 'pointer', transition: 'all 0.15s',
-                    }}
-                  >
-                    {label}
-                  </button>
-                )
-              })}
-              {assignments && (
-                <span style={{ marginLeft: 'auto', fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#1e293b', alignSelf: 'center' }}>
-                  {filtered.length} MISSIONS
-                </span>
-              )}
+            {/* Filter and Search Bar */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {FILTERS.map(({ key, label }) => {
+                  const active = filter === key
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => setFilter(key)}
+                      style={{
+                        padding: '6px 14px',
+                        borderRadius: 6,
+                        fontFamily: 'var(--font-sans)',
+                        fontSize: 13,
+                        fontWeight: active ? 600 : 500,
+                        cursor: 'pointer',
+                        border: active ? '1px solid var(--brand-primary)' : '1px solid var(--border-default)',
+                        background: active ? 'var(--brand-muted)' : 'var(--bg-subtle)',
+                        color: active ? 'var(--brand-primary)' : 'var(--text-secondary)',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      {label}
+                    </button>
+                  )
+                })}
+              </div>
+
+              <div style={{
+                position: 'relative',
+                display: 'flex',
+                alignItems: 'center',
+                minWidth: 260,
+              }}>
+                <Search size={14} style={{ position: 'absolute', left: 12, color: 'var(--text-muted)' }} />
+                <input
+                  type="text"
+                  placeholder="Filter by title, topic, or tag..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '7px 14px 7px 34px',
+                    borderRadius: 6,
+                    border: '1px solid var(--border-default)',
+                    background: 'var(--bg-subtle)',
+                    color: 'var(--text-primary)',
+                    fontSize: 13,
+                    fontFamily: 'var(--font-sans)',
+                    outline: 'none',
+                    transition: 'border-color 0.15s ease',
+                  }}
+                  onFocus={(e) => (e.target.style.borderColor = 'var(--brand-primary)')}
+                  onBlur={(e) => (e.target.style.borderColor = 'var(--border-default)')}
+                />
+              </div>
             </div>
           </div>
         </div>
 
-    
-        <div style={{ maxWidth: 1280, margin: '0 auto', padding: '28px 32px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-            {isLoading
-              ? Array.from({ length: 6 }).map((_, i) => <MissionSkeleton key={i} index={i} />)
-              : error
-                ? (
-                  <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '60px 0' }}>
-                    <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 13, color: '#f43f5e', marginBottom: 12 }}>
-                      FAILED TO CONNECT TO BACKEND SERVER ({error instanceof Error ? error.message : 'Network Error'})
-                    </p>
-                    <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#64748b', marginBottom: 16 }}>
-                      Ensure backend is running on port 6000: npm run dev --prefix backend
-                    </p>
-                    <button
-                      onClick={() => refetch()}
-                      style={{
-                        padding: '6px 16px',
-                        background: 'rgba(99,102,241,0.15)',
-                        border: '1px solid rgba(99,102,241,0.3)',
-                        borderRadius: 6,
-                        color: '#a5b4fc',
-                        fontFamily: 'JetBrains Mono, monospace',
-                        fontSize: 12,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      RETRY CONNECTION
-                    </button>
-                  </div>
-                )
-              : filtered.length > 0
-                ? filtered.map((a, i) => <MissionCard key={a._id} assignment={a} index={i} />)
-                : (
-                  <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '80px 0' }}>
-                    <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 13, color: '#1e293b' }}>
-                      NO MISSIONS FOUND
-                    </p>
-                  </div>
-                )
-            }
-          </div>
+        {/* Challenge Cards Grid */}
+        <div style={{ maxWidth: 1200, margin: '0 auto', width: '100%', padding: '32px 24px', flex: 1 }}>
+          {isLoading && (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+              gap: 20,
+            }}>
+              {[0, 1, 2, 3, 4, 5].map((i) => (
+                <div
+                  key={i}
+                  style={{
+                    height: 180,
+                    borderRadius: 10,
+                    background: 'var(--bg-card)',
+                    border: '1px solid var(--border-default)',
+                    padding: 20,
+                  }}
+                />
+              ))}
+            </div>
+          )}
+
+          {error && (
+            <div style={{
+              padding: 24,
+              borderRadius: 8,
+              background: 'var(--status-danger-bg)',
+              border: '1px solid rgba(244, 63, 94, 0.2)',
+              color: 'var(--status-danger)',
+              fontSize: 14,
+              fontFamily: 'var(--font-sans)',
+            }}>
+              Unable to load challenges. Please verify backend connection.
+            </div>
+          )}
+
+          {!isLoading && filtered.length === 0 && (
+            <div style={{
+              textAlign: 'center',
+              padding: '64px 20px',
+              color: 'var(--text-secondary)',
+              fontFamily: 'var(--font-sans)',
+            }}>
+              <p style={{ fontSize: 16, fontWeight: 500, marginBottom: 8, color: 'var(--text-primary)' }}>
+                No challenges match your search
+              </p>
+              <p style={{ fontSize: 13 }}>Try clearing filters or searching for another keyword.</p>
+            </div>
+          )}
+
+          {!isLoading && filtered.length > 0 && (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+              gap: 20,
+            }}>
+              {filtered.map((assignment, index) => (
+                <ChallengeCard key={assignment._id} assignment={assignment} index={index} />
+              ))}
+            </div>
+          )}
         </div>
 
+        <Footer />
       </main>
-      <Footer />
     </>
   )
 }

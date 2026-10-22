@@ -5,6 +5,7 @@ import { defaultKeymap, historyKeymap, history } from '@codemirror/commands'
 import { sql } from '@codemirror/lang-sql'
 import { oneDark } from '@codemirror/theme-one-dark'
 import { autocompletion, closeBrackets } from '@codemirror/autocomplete'
+import { useTheme } from '@/context/ThemeContext'
 
 interface SQLEditorProps {
   value: string
@@ -12,26 +13,10 @@ interface SQLEditorProps {
   onRun?: () => void
 }
 
-const customTheme = EditorView.theme({
-  '&': {
-    backgroundColor: 'transparent',
-    height: '100%',
-    fontSize: '13px',
-    fontFamily: "'JetBrains Mono', monospace",
-  },
-  '.cm-scroller': { overflow: 'auto' },
-  '.cm-content': { padding: '12px 0' },
-  '.cm-line': { padding: '0 16px' },
-  '.cm-gutters': {
-    backgroundColor: 'transparent',
-    borderRight: '1px solid rgba(255,255,255,0.06)',
-    color: '#475569',
-  },
-})
-
 export default function SQLEditor({ value, onChange, onRun }: SQLEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
+  const { theme } = useTheme()
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -46,34 +31,68 @@ export default function SQLEditor({ value, onChange, onRun }: SQLEditorProps) {
       },
     ])
 
-    const state = EditorState.create({
-      doc: value,
-      extensions: [
-        oneDark,
-        customTheme,
-        sql(),
-        history(),
-        autocompletion(),
-        closeBrackets(),
-        lineNumbers(),
-        highlightActiveLine(),
-        keymap.of([...defaultKeymap, ...historyKeymap]),
-        runKeymap,
-        EditorView.updateListener.of(update => {
-          if (update.docChanged) {
-            onChange(update.state.doc.toString())
-          }
-        }),
-      ],
+    const isDark = theme === 'dark'
+
+    const editorTheme = EditorView.theme({
+      '&': {
+        backgroundColor: 'var(--bg-card)',
+        height: '100%',
+        fontSize: '13px',
+        fontFamily: 'var(--font-mono)',
+        color: 'var(--text-primary)',
+      },
+      '.cm-scroller': { overflow: 'auto' },
+      '.cm-content': { padding: '12px 0' },
+      '.cm-line': { padding: '0 16px' },
+      '.cm-gutters': {
+        backgroundColor: 'var(--bg-card)',
+        borderRight: '1px solid var(--border-default)',
+        color: 'var(--text-muted)',
+      },
+      '.cm-activeLine': {
+        backgroundColor: isDark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.03)',
+      },
+      '.cm-activeLineGutter': {
+        backgroundColor: 'transparent',
+        color: 'var(--brand-primary)',
+      },
+      '.cm-cursor': {
+        borderLeftColor: 'var(--brand-primary)',
+      },
     })
 
-    viewRef.current = new EditorView({ state, parent: containerRef.current })
+    const extensions = [
+      editorTheme,
+      ...(isDark ? [oneDark] : []),
+      sql(),
+      history(),
+      autocompletion(),
+      closeBrackets(),
+      lineNumbers(),
+      highlightActiveLine(),
+      keymap.of([...defaultKeymap, ...historyKeymap]),
+      runKeymap,
+      EditorView.updateListener.of((update) => {
+        if (update.docChanged) {
+          onChange(update.state.doc.toString())
+        }
+      }),
+    ]
+
+    const state = EditorState.create({
+      doc: value,
+      extensions,
+    })
+
+    const view = new EditorView({ state, parent: containerRef.current })
+    viewRef.current = view
 
     return () => {
-      viewRef.current?.destroy()
+      view.destroy()
       viewRef.current = null
     }
-  }, [])
+  }, [theme])
+
   useEffect(() => {
     const view = viewRef.current
     if (!view) return
@@ -89,7 +108,12 @@ export default function SQLEditor({ value, onChange, onRun }: SQLEditorProps) {
   return (
     <div
       ref={containerRef}
-      className="h-full w-full bg-canvas rounded-b-xl overflow-hidden"
+      style={{
+        height: '100%',
+        width: '100%',
+        background: 'var(--bg-card)',
+        overflow: 'hidden',
+      }}
     />
   )
 }
