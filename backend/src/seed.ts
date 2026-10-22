@@ -423,6 +423,88 @@ export const sampleAssignments = [
     referenceSql: 'SELECT user_id, COUNT(*) AS session_count FROM sessions GROUP BY user_id ORDER BY session_count DESC LIMIT 10',
     orderMatters: true,
   },
+
+  // GROUP 7: interview classics & dml sandbox (8)
+  {
+    title: 'Employees Earning More Than Their Managers',
+    difficulty: 'easy' as const,
+    description: 'Find employees who earn more than their managers. Return the employee name under the alias Employee.',
+    tags: ['JOIN', 'SELF JOIN', 'WHERE'],
+    tableNames: ['employees'],
+    schemaDetails: SCHEMAS.employees,
+    referenceSql: 'SELECT e1.name AS "Employee" FROM employees e1 JOIN employees e2 ON e1.manager_id = e2.id WHERE e1.salary > e2.salary',
+    orderMatters: false,
+  },
+  {
+    title: 'Department Top Three Salaries',
+    difficulty: 'hard' as const,
+    description: 'Find employees who earn top 3 unique salaries in each department. Return department name, employee name, and salary.',
+    tags: ['DENSE_RANK', 'WINDOW FUNCTION', 'JOIN', 'CTE'],
+    tableNames: ['employees', 'departments'],
+    schemaDetails: SCHEMAS.departments,
+    referenceSql: 'WITH ranked AS (SELECT d.name AS department, e.name AS employee, e.salary, DENSE_RANK() OVER (PARTITION BY e.department ORDER BY e.salary DESC) AS rnk FROM employees e JOIN departments d ON e.department = d.name) SELECT department, employee, salary FROM ranked WHERE rnk <= 3',
+    orderMatters: false,
+  },
+  {
+    title: 'Rank Salaries Without Gaps',
+    difficulty: 'medium' as const,
+    description: 'Rank unique employee salaries in descending order without gaps in ranking numbers. Return salary and its dense rank.',
+    tags: ['DENSE_RANK', 'WINDOW FUNCTION', 'ORDER BY'],
+    tableNames: ['employees'],
+    schemaDetails: SCHEMAS.employees,
+    referenceSql: 'SELECT salary, DENSE_RANK() OVER (ORDER BY salary DESC) AS rank FROM employees ORDER BY salary DESC',
+    orderMatters: true,
+  },
+  {
+    title: 'Managers with Multiple Direct Reports',
+    difficulty: 'medium' as const,
+    description: 'Find managers who directly supervise at least two employees. Return the manager name.',
+    tags: ['JOIN', 'GROUP BY', 'HAVING'],
+    tableNames: ['employees'],
+    schemaDetails: SCHEMAS.employees,
+    referenceSql: 'SELECT m.name FROM employees m JOIN employees e ON m.id = e.manager_id GROUP BY m.id, m.name HAVING COUNT(e.id) >= 2',
+    orderMatters: false,
+  },
+  {
+    title: 'Count Salary Categories',
+    difficulty: 'medium' as const,
+    description: 'Categorize employee salaries into Low Salary (strictly less than 50000), Average Salary (between 50000 and 80000 inclusive), and High Salary (strictly greater than 80000). Return category and accounts_count across all categories.',
+    tags: ['UNION ALL', 'COUNT', 'WHERE'],
+    tableNames: ['employees'],
+    schemaDetails: SCHEMAS.employees,
+    referenceSql: "SELECT 'Low Salary' AS category, COUNT(*) AS accounts_count FROM employees WHERE salary < 50000 UNION ALL SELECT 'Average Salary' AS category, COUNT(*) AS accounts_count FROM employees WHERE salary >= 50000 AND salary <= 80000 UNION ALL SELECT 'High Salary' AS category, COUNT(*) AS accounts_count FROM employees WHERE salary > 80000",
+    orderMatters: false,
+  },
+  {
+    title: 'Consecutive Higher Order Amounts',
+    difficulty: 'medium' as const,
+    description: 'Find orders where the total amount was strictly higher than the previous order placed by the same customer, ordered by order date. Return order id and customer id.',
+    tags: ['LAG', 'WINDOW FUNCTION', 'CTE'],
+    tableNames: ['orders'],
+    schemaDetails: SCHEMAS.customers_orders,
+    referenceSql: 'WITH lagged AS (SELECT id, customer_id, total_amount, LAG(total_amount) OVER (PARTITION BY customer_id ORDER BY order_date ASC, id ASC) AS prev_amount FROM orders) SELECT id, customer_id FROM lagged WHERE total_amount > prev_amount',
+    orderMatters: false,
+  },
+  {
+    title: 'Purge Redundant Customer Records',
+    difficulty: 'medium' as const,
+    description: 'In an isolated write sandbox, delete all duplicate customer records keeping only the record with the smallest id for each email. Return the deleted rows using RETURNING id, email.',
+    tags: ['DELETE', 'DML', 'SUBQUERY', 'RETURNING'],
+    tableNames: ['customers'],
+    schemaDetails: SCHEMAS.customers_orders,
+    referenceSql: 'DELETE FROM customers WHERE id NOT IN (SELECT MIN(id) FROM customers GROUP BY email) RETURNING id, email',
+    orderMatters: false,
+  },
+  {
+    title: 'Department Cost-of-Living Raise',
+    difficulty: 'medium' as const,
+    description: 'In an isolated write sandbox, grant a 10 percent raise to all employees in the Engineering department. Return the updated employee name and new salary using RETURNING name, salary.',
+    tags: ['UPDATE', 'DML', 'WHERE', 'RETURNING'],
+    tableNames: ['employees'],
+    schemaDetails: SCHEMAS.employees,
+    referenceSql: "UPDATE employees SET salary = ROUND(salary * 1.10) WHERE department = 'Engineering' RETURNING name, salary",
+    orderMatters: false,
+  },
 ]
 
 export const validateReferenceQueries = async (): Promise<void> => {
@@ -433,13 +515,24 @@ export const validateReferenceQueries = async (): Promise<void> => {
     return
   }
 
-  logger.info('Validating all 31 reference queries against Postgres...', {
+  logger.info(`Validating all ${sampleAssignments.length} reference queries against Postgres...`, {
     event: 'seed_validation_start',
   })
   const client = await sandboxPool.connect()
   try {
     for (const [index, assignment] of sampleAssignments.entries()) {
-      const res = await client.query(assignment.referenceSql)
+      const isWrite = /^(INSERT|UPDATE|DELETE)\b/i.test(assignment.referenceSql.trim())
+      let res
+      if (isWrite) {
+        await client.query('BEGIN')
+        try {
+          res = await client.query(assignment.referenceSql)
+        } finally {
+          await client.query('ROLLBACK')
+        }
+      } else {
+        res = await client.query(assignment.referenceSql)
+      }
       if (res.rows.length === 0) {
         throw new Error(`Assignment #${index + 1} "${assignment.title}" returned 0 rows!`)
       }
@@ -447,7 +540,7 @@ export const validateReferenceQueries = async (): Promise<void> => {
         throw new Error(`Assignment #${index + 1} "${assignment.title}" returned ${res.rows.length} rows (> 500 cap)!`)
       }
     }
-    logger.info('All 31 reference queries returned non-empty valid results within limits', {
+    logger.info(`All ${sampleAssignments.length} reference queries returned non-empty valid results within limits`, {
       event: 'seed_validation_success',
       totalQueries: sampleAssignments.length,
     })
