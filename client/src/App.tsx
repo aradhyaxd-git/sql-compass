@@ -7,8 +7,10 @@ import { ThemeProvider, useTheme } from '@/context/ThemeContext'
 import { PageLoadingSkeleton } from '@/components/ui/Skeleton'
 
 const Landing = lazy(() => import('@/pages/LandingPage'))
-const Auth = lazy(() => import('@/pages/Auth'))
-const ResetPassword = lazy(() => import('@/pages/ResetPassword'))
+const AuthLayout = lazy(() => import('@/components/auth/AuthLayout'))
+const LoginForm = lazy(() => import('@/components/auth/LoginForm'))
+const RegisterForm = lazy(() => import('@/components/auth/RegisterForm'))
+const PasswordResetForm = lazy(() => import('@/components/auth/PasswordResetForm'))
 const PrivacyPolicy = lazy(() => import('@/pages/PrivacyPolicy'))
 const TermsOfService = lazy(() => import('@/pages/TermsOfService'))
 const Dashboard = lazy(() => import('@/pages/Dashboard'))
@@ -51,7 +53,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (!isSignedIn) {
-    return <Navigate to="/auth" replace />
+    return <Navigate to="/auth/login" replace />
   }
 
   return <>{children}</>
@@ -65,10 +67,18 @@ export default function App() {
         <BrowserRouter>
           <Suspense fallback={<PageLoadingSkeleton />}>
             <Routes>
-              {/* Public */}
+              {/* Public Routes */}
               <Route path="/" element={<Landing />} />
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/reset-password" element={<ResetPassword />} />
+
+              {/* Nested Auth Routes */}
+              <Route path="/auth" element={<AuthLayout />}>
+                <Route index element={<LoginForm />} />
+                <Route path="login" element={<LoginForm />} />
+                <Route path="register" element={<RegisterForm />} />
+                <Route path="reset-password" element={<PasswordResetForm />} />
+              </Route>
+              <Route path="/reset-password" element={<Navigate to="/auth/reset-password" replace />} />
+
               <Route path="/privacy" element={<PrivacyPolicy />} />
               <Route path="/terms" element={<TermsOfService />} />
 

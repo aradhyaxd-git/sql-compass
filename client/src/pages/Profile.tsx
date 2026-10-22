@@ -22,6 +22,8 @@ import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import UserAvatar from '@/components/ui/UserAvatar'
 import { ProfileSkeleton } from '@/components/ui/Skeleton'
+import Alert from '@/components/ui/Alert'
+import Input from '@/components/ui/Input'
 import { toast } from 'sonner'
 import { useUserStats, useAttemptHistory } from '@/hooks/useProfile'
 
@@ -444,23 +446,12 @@ export default function Profile() {
                 }}
               >
                 {twoFactorMessage && (
-                  <div
-                    style={{
-                      padding: '10px 14px',
-                      borderRadius: 8,
-                      marginBottom: 16,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 10,
-                      background: twoFactorMessage.type === 'success' ? 'rgba(34, 197, 94, 0.1)' : 'var(--status-danger-bg)',
-                      border: `1px solid ${twoFactorMessage.type === 'success' ? 'rgba(34, 197, 94, 0.3)' : 'rgba(244, 63, 94, 0.3)'}`,
-                      color: twoFactorMessage.type === 'success' ? 'var(--status-success, #22c55e)' : 'var(--status-danger)',
-                      fontFamily: 'var(--font-sans)',
-                      fontSize: 12,
-                    }}
-                  >
-                    {twoFactorMessage.type === 'success' ? <CheckCircle2 size={15} /> : <AlertCircle size={15} />}
-                    <span>{twoFactorMessage.text}</span>
+                  <div style={{ marginBottom: 16 }}>
+                    <Alert
+                      type={twoFactorMessage.type}
+                      message={twoFactorMessage.text}
+                      onClose={() => setTwoFactorMessage(null)}
+                    />
                   </div>
                 )}
 
@@ -536,7 +527,7 @@ export default function Profile() {
                           2. Enter 6-digit code
                         </div>
                         <div style={{ display: 'flex', gap: 8, maxWidth: 320 }}>
-                          <input
+                          <Input
                             type="text"
                             inputMode="numeric"
                             maxLength={6}
@@ -546,16 +537,9 @@ export default function Profile() {
                             required
                             style={{
                               width: 140,
-                              padding: '8px 12px',
-                              borderRadius: 6,
-                              border: '1px solid var(--border-default)',
-                              background: 'var(--bg-card)',
-                              color: 'var(--text-primary)',
-                              fontFamily: 'var(--font-mono)',
-                              fontSize: 16,
                               textAlign: 'center',
                               letterSpacing: '0.2em',
-                              outline: 'none',
+                              fontSize: 16,
                             }}
                           />
                           <button
