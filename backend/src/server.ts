@@ -12,6 +12,7 @@ import mongoose from 'mongoose'
 import { globalLimiter } from './middleware/rateLimiter.js'
 import { logger, distributedTracingMiddleware } from './utils/logger.js'
 import { formatPrometheusMetrics } from './services/metricsService.js'
+import { handleJsonRpcMessage } from './mcp/mcpServer.js'
 
 const app = express()
 const PORT = Number(process.env.PORT) || 6000
@@ -93,6 +94,23 @@ app.use('/api/query', executionRoutes)
 app.use('/api/hints', hintRoutes)
 app.use('/api/profile', profileRoutes)
 app.use('/api/admin', adminRoutes)
+
+app.post('/api/mcp', async (req, res) => {
+  try {
+    const response = await handleJsonRpcMessage(req.body)
+    if (!response) {
+      res.status(204).end()
+      return
+    }
+    res.status(200).json(response)
+  } catch (err) {
+    res.status(500).json({
+      jsonrpc: '2.0',
+      id: req.body?.id || null,
+      error: { code: -32603, message: err instanceof Error ? err.message : String(err) },
+    })
+  }
+})
 
 app.use((_, res) => {
   res.status(404).json({ success: false, message: 'Route not found' })
