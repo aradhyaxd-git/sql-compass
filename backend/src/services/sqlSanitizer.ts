@@ -103,6 +103,22 @@ function checkStatementSafety(
     return { safe: true, category: 'read', statementType: 'select' }
   }
 
+  if (stmtType === 'union' || stmtType === 'union all') {
+    if (s.left && typeof s.left === 'object') {
+      const leftCheck = checkStatementSafety(s.left, options)
+      if (!leftCheck.safe) return leftCheck
+    }
+    if (s.right && typeof s.right === 'object') {
+      const rightCheck = checkStatementSafety(s.right, options)
+      if (!rightCheck.safe) return rightCheck
+    }
+    return { safe: true, category: 'read', statementType: stmtType }
+  }
+
+  if (stmtType === 'values') {
+    return { safe: true, category: 'read', statementType: 'values' }
+  }
+
   if (stmtType === 'with' || stmtType === 'with recursive') {
     if (s.in && typeof s.in === 'object') {
       const inCheck = checkStatementSafety(s.in, options)

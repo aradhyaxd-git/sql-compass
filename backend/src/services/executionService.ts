@@ -51,6 +51,41 @@ export interface ExecutionOptions {
   verificationSql?: string
 }
 
+const MAX_RESPONSE_BYTES = 2 * 1024 * 1024 // 2 MB
+
+function validateAndFormatResults(
+  fields: Array<{ name: string }>,
+  rawRows: unknown[][],
+  maxRows: number = ROW_LIMIT
+): { columns: string[]; rows: Record<string, unknown>[]; rawTuples: unknown[][] } {
+  const columns = fields.map((f) => f.name)
+  const cappedRows = rawRows.length > maxRows ? rawRows.slice(0, maxRows) : rawRows
+
+  let totalBytes = 0
+  const rows: Record<string, unknown>[] = []
+
+  for (const tuple of cappedRows) {
+    const rowObj: Record<string, unknown> = {}
+    for (let idx = 0; idx < columns.length; idx++) {
+      const val = tuple[idx]
+      rowObj[columns[idx]] = val
+      if (typeof val === 'string') {
+        totalBytes += val.length
+      } else if (val !== null && val !== undefined) {
+        totalBytes += 8
+      }
+      if (totalBytes > MAX_RESPONSE_BYTES) {
+        throw new Error(
+          'Query result exceeds maximum payload memory budget (2 MB). Please refine your projection or add a LIMIT clause.'
+        )
+      }
+    }
+    rows.push(rowObj)
+  }
+
+  return { columns, rows, rawTuples: cappedRows }
+}
+
 export const executeUserQuery = async (
   sql: string,
   options: ExecutionOptions = {}
@@ -75,34 +110,29 @@ export const executeUserQuery = async (
         rowMode: 'array',
       })
 
-      let finalResult
+      let fields: Array<{ name: string }>
+      let rawRows: unknown[][]
+
       if (options.verificationSql) {
         const verifyClean = options.verificationSql.trim().replace(/;+\s*$/, '')
-        finalResult = await client.query({
+        const verifyRes = await client.query({
           text: `SELECT * FROM (\n${verifyClean}\n) AS _verification LIMIT ${ROW_LIMIT}`,
           rowMode: 'array',
         })
+        fields = verifyRes.fields
+        rawRows = verifyRes.rows as unknown[][]
       } else if (userRes.fields && userRes.fields.length > 0) {
-        finalResult = userRes
+        fields = userRes.fields
+        rawRows = userRes.rows as unknown[][]
       } else {
-        finalResult = {
-          fields: [{ name: 'command' }, { name: 'affected_rows' }],
-          rows: [[userRes.command, userRes.rowCount ?? 0]],
-        }
+        fields = [{ name: 'command' }, { name: 'affected_rows' }]
+        rawRows = [[userRes.command, userRes.rowCount ?? 0]]
       }
 
       await client.query('ROLLBACK')
 
       const duration = Date.now() - startTime
-      const columns = finalResult.fields.map((f: { name: string }) => f.name)
-      const rawTuples = finalResult.rows as unknown[][]
-      const rows = rawTuples.map((tuple) => {
-        const rowObj: Record<string, unknown> = {}
-        columns.forEach((col, idx) => {
-          rowObj[col] = tuple[idx]
-        })
-        return rowObj
-      })
+      const { columns, rows, rawTuples } = validateAndFormatResults(fields, rawRows, ROW_LIMIT)
 
       return {
         columns,
@@ -144,15 +174,11 @@ export const executeUserQuery = async (
     await client.query('COMMIT')
 
     const duration = Date.now() - startTime
-    const columns = result.fields.map(f => f.name)
-    const rawTuples = result.rows as unknown[][]
-    const rows = rawTuples.map((tuple) => {
-      const rowObj: Record<string, unknown> = {}
-      columns.forEach((col, idx) => {
-        rowObj[col] = tuple[idx]
-      })
-      return rowObj
-    })
+    const { columns, rows, rawTuples } = validateAndFormatResults(
+      result.fields,
+      result.rows as unknown[][],
+      options.bypassLimit ? 10000 : ROW_LIMIT
+    )
 
     return {
       columns,

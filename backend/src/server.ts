@@ -12,31 +12,38 @@ import mongoose from 'mongoose'
 import { globalLimiter } from './middleware/rateLimiter.js'
 import { logger, distributedTracingMiddleware } from './utils/logger.js'
 import { formatPrometheusMetrics } from './services/metricsService.js'
-import { handleJsonRpcMessage } from './mcp/mcpServer.js'
 
 const app = express()
 const PORT = Number(process.env.PORT) || 6000
 
 app.set('trust proxy', 1)
 
+const isProduction = process.env.NODE_ENV === 'production'
+
 const allowedOrigins = [
   process.env.CLIENT_ORIGIN,
-  'http://localhost:5173',
-  'http://127.0.0.1:5173',
-  'http://localhost:5174',
-  'http://127.0.0.1:5174',
+  !isProduction && 'http://localhost:5173',
+  !isProduction && 'http://127.0.0.1:5173',
+  !isProduction && 'http://localhost:5174',
+  !isProduction && 'http://127.0.0.1:5174',
 ].filter(Boolean) as string[]
-
-const isProduction = process.env.NODE_ENV === 'production'
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || !isProduction || allowedOrigins.includes(origin) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+      if (!origin) {
         callback(null, true)
-      } else {
-        callback(new Error(`CORS: origin ${origin} not allowed`))
+        return
       }
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true)
+        return
+      }
+      if (!isProduction && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+        callback(null, true)
+        return
+      }
+      callback(null, false)
     },
     credentials: true,
   })
@@ -45,12 +52,16 @@ app.use(
 app.use(distributedTracingMiddleware)
 app.use(express.json({ limit: '50kb' }))
 
+// Fast public liveness probe (no DB connection acquired)
 app.get('/health', (_, res) => {
   res.status(200).json({
     status: 'active',
     timestamp: new Date().toISOString(),
   })
 })
+
+// Rate limit all operational and API endpoints
+app.use(globalLimiter)
 
 app.get('/metrics', (_, res) => {
   res.setHeader('Content-Type', 'text/plain; version=0.0.4; charset=utf-8')
@@ -87,30 +98,11 @@ app.get('/health/deep', async (_, res) => {
   })
 })
 
-app.use(globalLimiter)
-
 app.use('/api/assignments', assignmentRoutes)
 app.use('/api/query', executionRoutes)
 app.use('/api/hints', hintRoutes)
 app.use('/api/profile', profileRoutes)
 app.use('/api/admin', adminRoutes)
-
-app.post('/api/mcp', async (req, res) => {
-  try {
-    const response = await handleJsonRpcMessage(req.body)
-    if (!response) {
-      res.status(204).end()
-      return
-    }
-    res.status(200).json(response)
-  } catch (err) {
-    res.status(500).json({
-      jsonrpc: '2.0',
-      id: req.body?.id || null,
-      error: { code: -32603, message: err instanceof Error ? err.message : String(err) },
-    })
-  }
-})
 
 app.use((_, res) => {
   res.status(404).json({ success: false, message: 'Route not found' })
@@ -160,11 +152,27 @@ const startServer = async (): Promise<void> => {
     })
   }
 
-  process.on('SIGTERM', () => shutdown('SIGTERM'))
-  process.on('SIGINT', () => shutdown('SIGINT'))
-}
+    process.on('SIGTERM', () => shutdown('SIGTERM'))
+    process.on('SIGINT', () => shutdown('SIGINT'))
 
-startServer().catch((err) => {
-  logger.error('Server startup failed', { event: 'startup_failure', error: String(err) })
-  process.exit(1)
-})
+    process.on('unhandledRejection', (reason) => {
+      logger.error('Unhandled Promise Rejection caught at process level', {
+        event: 'unhandled_rejection',
+        error: reason instanceof Error ? reason.message : String(reason),
+        stack: reason instanceof Error ? reason.stack : undefined,
+      })
+    })
+
+    process.on('uncaughtException', (err) => {
+      logger.error('Uncaught Exception caught at process level', {
+        event: 'uncaught_exception',
+        error: err.message,
+        stack: err.stack,
+      })
+    })
+  }
+
+  startServer().catch((err) => {
+    logger.error('Server startup failed', { event: 'startup_failure', error: String(err) })
+    process.exit(1)
+  })

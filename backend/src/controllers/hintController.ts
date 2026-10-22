@@ -18,9 +18,18 @@ export const getAssignmentHint = async (req: Request, res: Response): Promise<vo
       return
     }
 
-    const queryStr = typeof currentQuery === 'string' ? currentQuery : ''
+    if (typeof currentQuery === 'string' && currentQuery.length > 4000) {
+      res.status(400).json({
+        success: false,
+        message: 'Query string too long (maximum 4000 characters permitted)',
+      })
+      return
+    }
 
-    const cached = hintCache.get(assignmentId, queryStr, 1)
+    const queryStr = typeof currentQuery === 'string' ? currentQuery : ''
+    const requestedLevel = Math.min(Math.max(Number(req.body?.level) || 1, 1), 3) as 1 | 2 | 3
+
+    const cached = hintCache.get(assignmentId, queryStr, requestedLevel)
     if (cached) {
       metrics.recordHintRequest(true)
       res.status(200).json({

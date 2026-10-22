@@ -291,7 +291,4 @@ export const hintWorkflow = new StateGraph(HintState)
   .addEdge('respond', END)
   .addEdge('fallback', END)
 
-export const hintMemorySaver = new MemorySaver()
-export const compiledHintGraph = hintWorkflow.compile({
-  checkpointer: hintMemorySaver,
-})
+export const compiledHintGraph = hintWorkflow.compile()

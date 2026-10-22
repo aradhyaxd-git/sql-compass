@@ -26,6 +26,7 @@ export const getModel = (role: ModelRole): BaseChatModel => {
       apiKey,
       model: groqModelMap[role],
       temperature: temperatureMap[role],
+      maxTokens: 512,
       maxRetries: 1,
     })
   }
@@ -41,5 +42,6 @@ export const getModel = (role: ModelRole): BaseChatModel => {
     apiKey: geminiApiKey,
     model: geminiModelMap[role],
     temperature: temperatureMap[role],
+    maxOutputTokens: 512,
   })
 }

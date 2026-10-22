@@ -33,6 +33,9 @@ const legitimateQueries = [
   "SELECT 1 AS num, 'test' AS str, true AS bool",
   'SELECT name, hire_date FROM employees WHERE hire_date <= CURRENT_DATE',
   'SELECT id, name FROM products WHERE price > 100 ORDER BY price ASC',
+  'SELECT 1 AS col UNION SELECT 2 AS col',
+  'SELECT 1 AS col UNION ALL SELECT 2 AS col',
+  "VALUES (1, 'alpha'), (2, 'beta')",
 ]
 
 const attackStrings = [

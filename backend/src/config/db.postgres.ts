@@ -15,7 +15,12 @@ const connectionString = rawUrl ? rawUrl.trim() : undefined
 
 const isLocalhost = connectionString ? /localhost|127\.0\.0\.1/.test(connectionString) : false
 const isSslDisabled = connectionString ? connectionString.includes('sslmode=disable') : false
-const sslConfig = isLocalhost || isSslDisabled ? false : { rejectUnauthorized: false }
+const sslConfig =
+  isLocalhost || isSslDisabled
+    ? false
+    : {
+        rejectUnauthorized: process.env.NODE_ENV === 'production' && process.env.PGSSLALLOWSELF !== 'true',
+      }
 
 export const sandboxPool = new Pool({
   connectionString,
