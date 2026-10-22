@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express'
+import mongoose from 'mongoose'
 import { executeUserQuery } from '../services/executionService.js'
 import { saveAttempt } from '../services/attemptService.js'
 import {
@@ -7,22 +8,35 @@ import {
   type JudgeVerdict,
 } from '../services/judgeService.js'
 import Assignment from '../models/Assignment.js'
-import type { ExecuteRequestBody } from '../types/index.js' 
-
 import { logger } from '../utils/logger.js'
+import { acquireExecutionSlot } from '../services/concurrencyGuard.js'
+import { checkDialectCompatibility } from '../services/dialectLinter.js'
+import { metrics } from '../services/metricsService.js'
 
 export const handleExecution = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { assignmentId, sql } = req.body as ExecuteRequestBody
-    const userId = req.userId! 
+  const userId = req.userId || 'anonymous'
+  const userKey = userId !== 'anonymous' ? userId : req.ip || 'anonymous'
+  const slot = acquireExecutionSlot(userKey)
 
-    if (!sql || !sql.trim()) {
-      res.status(400).json({ success: false, message: 'SQL query is required' })
+  if (!slot.allowed) {
+    metrics.recordConcurrencyRejected()
+    res.status(429).json({
+      success: false,
+      message: 'A query is already executing for your account. Please wait for it to complete.',
+    })
+    return
+  }
+
+  try {
+    const { assignmentId, sql } = req.body || {}
+
+    if (typeof sql !== 'string' || !sql.trim()) {
+      res.status(400).json({ success: false, message: 'SQL query is required and must be a valid string' })
       return
     }
 
-    if (!assignmentId) {
-      res.status(400).json({ success: false, message: 'assignmentId is required' })
+    if (!assignmentId || !mongoose.Types.ObjectId.isValid(assignmentId)) {
+      res.status(400).json({ success: false, message: 'A valid assignmentId is required' })
       return
     }
 
@@ -39,7 +53,11 @@ export const handleExecution = async (req: Request, res: Response): Promise<void
     try {
       result = await executeUserQuery(sql)
     } catch (execError) {
+      metrics.recordExecutionError()
       const msg = execError instanceof Error ? execError.message : String(execError)
+      const dialectCheck = checkDialectCompatibility(sql)
+      const dialectHint = dialectCheck.hasDialectIssue ? dialectCheck.hints.join(' ') : undefined
+
       await saveAttempt({
         userId,
         assignmentId,
@@ -55,11 +73,13 @@ export const handleExecution = async (req: Request, res: Response): Promise<void
           event: 'save_attempt_error',
           error: String(saveErr),
         })
-      })  
+      })
 
-      res.status(400).json({ success: false, message: msg })
+      res.status(400).json({ success: false, message: msg, hint: dialectHint })
       return
     }
+
+    metrics.recordExecutionSuccess()
 
     let verdict: JudgeVerdict
     try {
@@ -86,6 +106,8 @@ export const handleExecution = async (req: Request, res: Response): Promise<void
         message: 'Internal error checking answer against reference.',
       }
     }
+
+    metrics.recordVerdict(verdict.correct)
 
     const { xpEarned } = await saveAttempt({
       userId,
@@ -129,6 +151,8 @@ export const handleExecution = async (req: Request, res: Response): Promise<void
       event: 'execution_controller_failure',
       error: msg,
     })
-    res.status(500).json({ success: false, message: msg })
+    res.status(500).json({ success: false, message: 'Internal server error executing query' })
+  } finally {
+    slot.release()
   }
 }

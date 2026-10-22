@@ -31,51 +31,56 @@ export interface JudgeVerdict {
   diff?: VerdictDiff
 }
 
+/**
+ * Normalizes values without losing case sensitivity, precision, or numeric distinction.
+ * - Strings retain their exact case ('Admin' !== 'admin').
+ * - Numbers and numeric strings retain exact precision; floats are represented via scientific/lossless precision.
+ * - Distinguishes numbers from padded strings (e.g. '007' !== '7').
+ */
 export function normalizeValue(val: unknown): string {
   if (val === null || val === undefined) {
-    return '__NULL__'
+    return 'null:null'
   }
 
   if (val instanceof Date) {
-    return val.toISOString()
+    return `date:${val.toISOString()}`
   }
 
   if (typeof val === 'number') {
-    return Number.isInteger(val) ? val.toString() : val.toFixed(2)
-  }
-
-  if (typeof val === 'string') {
-    const trimmed = val.trim()
-    // Numeric string normalization (e.g. "50000.00" -> "50000.00")
-    if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
-      const num = Number(trimmed)
-      if (!Number.isNaN(num)) {
-        return Number.isInteger(num) ? num.toString() : num.toFixed(2)
-      }
-    }
-    // Check if valid ISO date string
-    if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
-      const date = new Date(trimmed)
-      if (!Number.isNaN(date.getTime())) {
-        return date.toISOString().split('T')[0]!
-      }
-    }
-    return trimmed.toLowerCase()
+    return `num:${Number.isFinite(val) ? val.toString() : String(val)}`
   }
 
   if (typeof val === 'boolean') {
-    return val ? 'true' : 'false'
+    return `bool:${val ? 'true' : 'false'}`
   }
 
-  return String(val).trim().toLowerCase()
+  if (typeof val === 'string') {
+    return `str:${val}`
+  }
+
+  if (typeof val === 'bigint') {
+    return `bigint:${val.toString()}`
+  }
+
+  if (Buffer.isBuffer(val)) {
+    return `buf:${val.toString('hex')}`
+  }
+
+  return `obj:${JSON.stringify(val)}`
 }
 
-function rowToTuple(row: Record<string, unknown>, columns: string[]): string[] {
-  return columns.map((col) => normalizeValue(row[col]))
+export function extractRowTuples(result: QueryResult): string[][] {
+  if (result.rawTuples && Array.isArray(result.rawTuples)) {
+    return result.rawTuples.map((tuple) => tuple.map((item) => normalizeValue(item)))
+  }
+
+  return result.rows.map((row) =>
+    result.columns.map((col) => normalizeValue(row[col]))
+  )
 }
 
 function tupleToKey(tuple: string[]): string {
-  return tuple.join('|||')
+  return tuple.join('\x1F') // ASCII Unit Separator to prevent collision with content
 }
 
 export function compareResults(
@@ -85,8 +90,8 @@ export function compareResults(
 ): JudgeVerdict {
   const actualColCount = actual.columns.length
   const expectedColCount = expected.columns.length
-  const actualRowCount = actual.rows.length
-  const expectedRowCount = expected.rows.length
+  const actualRowCount = actual.rowCount ?? actual.rows.length
+  const expectedRowCount = expected.rowCount ?? expected.rows.length
 
   const baseDiff: VerdictDiff = {
     actualColumnCount: actualColCount,
@@ -115,9 +120,9 @@ export function compareResults(
     }
   }
 
-  // Extract positional tuples
-  const actualTuples = actual.rows.map((r) => rowToTuple(r, actual.columns))
-  const expectedTuples = expected.rows.map((r) => rowToTuple(r, expected.columns))
+  // Extract positional normalized tuples (preserves duplicate column indices)
+  const actualTuples = extractRowTuples(actual)
+  const expectedTuples = extractRowTuples(expected)
 
   const sampleMismatches: SampleMismatch[] = []
 
@@ -130,10 +135,13 @@ export function compareResults(
       for (let c = 0; c < expectedT.length; c++) {
         if (actualT[c] !== expectedT[c]) {
           if (sampleMismatches.length < 3) {
+            const displayVal = actual.rawTuples
+              ? actual.rawTuples[i]?.[c]
+              : actual.rows[i]?.[actual.columns[c]!]
             sampleMismatches.push({
               rowIndex: i + 1,
               columnIndex: c + 1,
-              actualValue: actual.rows[i]?.[actual.columns[c]!],
+              actualValue: displayVal,
               message: `Row #${i + 1}, Column #${c + 1} value did not match expected ordering.`,
             })
           }
@@ -161,7 +169,7 @@ export function compareResults(
     }
   }
 
-  // 4. Unordered multiset comparison
+  // 4. Unordered multiset (bag) comparison
   const expectedBag = new Map<string, number>()
   for (const t of expectedTuples) {
     const key = tupleToKey(t)
@@ -211,14 +219,28 @@ export function compareResults(
   }
 }
 
+// Bounded LRU Reference Cache (Max 100 queries) with invalidation helper
+const MAX_REF_CACHE_SIZE = 100
 const referenceQueryCache = new Map<string, QueryResult>()
+
+export function clearReferenceQueryCache(): void {
+  referenceQueryCache.clear()
+}
 
 export async function getReferenceQueryResult(referenceSql: string): Promise<QueryResult> {
   const cached = referenceQueryCache.get(referenceSql)
   if (cached) {
+    // Refresh LRU position
+    referenceQueryCache.delete(referenceSql)
+    referenceQueryCache.set(referenceSql, cached)
     return cached
   }
+
   const result = await executeUserQuery(referenceSql)
+  if (referenceQueryCache.size >= MAX_REF_CACHE_SIZE) {
+    const firstKey = referenceQueryCache.keys().next().value
+    if (firstKey) referenceQueryCache.delete(firstKey)
+  }
   referenceQueryCache.set(referenceSql, result)
   return result
 }

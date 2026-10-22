@@ -1,20 +1,22 @@
 import './env.js'
 import express from 'express'
 import cors from 'cors'
-import { connectSandboxDB } from './config/db.postgres.js'
+import { connectSandboxDB, sandboxPool } from './config/db.postgres.js'
 import { connectPersistenceDB } from './config/db.mongo.js'
 import assignmentRoutes from './routes/assignmentRouter.js'
 import executionRoutes from './routes/executionRouter.js'
 import hintRoutes from './routes/hintRouter.js'
 import profileRoutes from './routes/profileRouter.js'
 import adminRoutes from './routes/adminRouter.js'
-import { sandboxPool } from './config/db.postgres.js'
 import mongoose from 'mongoose'
 import { globalLimiter } from './middleware/rateLimiter.js'
 import { logger, distributedTracingMiddleware } from './utils/logger.js'
+import { formatPrometheusMetrics } from './services/metricsService.js'
 
 const app = express()
-const PORT = Number(process.env.PORT) || 5000
+const PORT = Number(process.env.PORT) || 6000
+
+app.set('trust proxy', 1)
 
 const allowedOrigins = [
   process.env.CLIENT_ORIGIN,
@@ -41,12 +43,17 @@ app.use(
 
 app.use(distributedTracingMiddleware)
 app.use(express.json({ limit: '50kb' }))
-app.use(globalLimiter)
+
 app.get('/health', (_, res) => {
   res.status(200).json({
     status: 'active',
     timestamp: new Date().toISOString(),
   })
+})
+
+app.get('/metrics', (_, res) => {
+  res.setHeader('Content-Type', 'text/plain; version=0.0.4; charset=utf-8')
+  res.status(200).send(formatPrometheusMetrics())
 })
 
 app.get('/health/deep', async (_, res) => {
@@ -56,13 +63,17 @@ app.get('/health/deep', async (_, res) => {
     server: 'ok',
   }
 
+  let pgClient
   try {
-    const pgClient = await sandboxPool.connect()
+    pgClient = await sandboxPool.connect()
     await pgClient.query('SELECT 1')
-    pgClient.release()
     checks.postgres = 'ok'
-  } catch (pgErr) {
-    checks.postgres = `error: ${pgErr instanceof Error ? pgErr.message : String(pgErr)}`
+  } catch {
+    checks.postgres = 'error'
+  } finally {
+    if (pgClient) {
+      pgClient.release()
+    }
   }
 
   checks.mongodb = mongoose.connection.readyState === 1 ? 'ok' : 'disconnected'
@@ -75,9 +86,11 @@ app.get('/health/deep', async (_, res) => {
   })
 })
 
+app.use(globalLimiter)
+
 app.use('/api/assignments', assignmentRoutes)
-app.use('/api/query', executionRoutes)   // has queryLimiter inside router
-app.use('/api/hints', hintRoutes)        // has hintLimiter inside router
+app.use('/api/query', executionRoutes)
+app.use('/api/hints', hintRoutes)
 app.use('/api/profile', profileRoutes)
 app.use('/api/admin', adminRoutes)
 
@@ -113,6 +126,24 @@ const startServer = async (): Promise<void> => {
     }
     throw err
   })
+
+  const shutdown = async (signal: string) => {
+    logger.info(`Received ${signal}, shutting down gracefully`, { event: 'shutdown_started' })
+    server.close(async () => {
+      try {
+        await sandboxPool.end()
+        await mongoose.disconnect()
+        logger.info('Database connections closed', { event: 'shutdown_complete' })
+        process.exit(0)
+      } catch (err) {
+        logger.error('Error during shutdown', { event: 'shutdown_error', error: String(err) })
+        process.exit(1)
+      }
+    })
+  }
+
+  process.on('SIGTERM', () => shutdown('SIGTERM'))
+  process.on('SIGINT', () => shutdown('SIGINT'))
 }
 
 startServer().catch((err) => {

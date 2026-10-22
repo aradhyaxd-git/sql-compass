@@ -31,11 +31,23 @@ export interface ExecuteRequestBody {
   sql: string
 }
 
+export interface ExecutionPlanSummary {
+  totalCost: number
+  startupCost: number
+  planRows: number
+  planWidth: number
+  nodeTypes: string[]
+  hasSeqScan: boolean
+  hasIndexScan: boolean
+}
+
 export interface QueryResult {
   columns: string[]
   rows: Record<string, unknown>[]
+  rawTuples?: unknown[][]
   rowCount: number
-  duration: number  
+  duration: number
+  executionPlan?: ExecutionPlanSummary
 }
 
 
