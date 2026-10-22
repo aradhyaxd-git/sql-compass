@@ -12,12 +12,9 @@ export const requireAdmin = (req: Request, res: Response, next: NextFunction): v
     .map((id) => id.trim())
     .filter(Boolean)
 
-  if (adminIds.length === 0) {
-    if (process.env.NODE_ENV === 'production') {
-      res.status(403).json({ success: false, message: 'Forbidden: Admin access not configured' })
-      return
-    }
-  } else if (!adminIds.includes(userId)) {
+  // Fail-closed: If no admin IDs are configured in the environment,
+  // access MUST be denied regardless of NODE_ENV.
+  if (adminIds.length === 0 || !adminIds.includes(userId)) {
     res.status(403).json({ success: false, message: 'Forbidden: Admin access required' })
     return
   }

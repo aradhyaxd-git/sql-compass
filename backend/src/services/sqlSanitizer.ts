@@ -2,6 +2,8 @@ import { parse, type Statement } from 'pgsql-ast-parser'
 
 const DANGEROUS_FUNCTIONS = new Set([
   'pg_sleep',
+  'pg_sleep_for',
+  'pg_sleep_until',
   'set_config',
   'pg_read_file',
   'pg_write_file',
@@ -14,9 +16,24 @@ const DANGEROUS_FUNCTIONS = new Set([
   'dblink',
   'dblink_exec',
   'query_to_xml',
+  'query_to_xml_and_xmlschema',
+  'query_to_xmlschema',
+  'cursor_to_xml',
+  'cursor_to_xmlschema',
   'pg_backend_pid',
   'pg_terminate_backend',
   'pg_cancel_backend',
+  'pg_advisory_lock',
+  'pg_advisory_lock_shared',
+  'pg_try_advisory_lock',
+  'pg_try_advisory_lock_shared',
+  'pg_advisory_xact_lock',
+  'pg_advisory_xact_lock_shared',
+  'pg_try_advisory_xact_lock',
+  'pg_try_advisory_xact_lock_shared',
+  'pg_advisory_unlock',
+  'pg_advisory_unlock_all',
+  'pg_advisory_unlock_shared',
 ])
 
 const MAX_QUERY_LENGTH = 4000
@@ -51,6 +68,50 @@ function findDangerousFunction(node: unknown): string | null {
   }
 
   return null
+}
+
+function assertReadOnlyStatement(stmt: unknown): { safe: boolean; reason?: string } {
+  if (!stmt || typeof stmt !== 'object') {
+    return { safe: false, reason: 'Invalid statement node' }
+  }
+
+  const s = stmt as Record<string, unknown>
+  const stmtType = String(s.type || '').toLowerCase()
+
+  if (stmtType === 'select') {
+    return { safe: true }
+  }
+
+  if (stmtType === 'with' || stmtType === 'with recursive') {
+    // Check main CTE target statement (statement.in)
+    if (s.in && typeof s.in === 'object') {
+      const inCheck = assertReadOnlyStatement(s.in)
+      if (!inCheck.safe) {
+        return inCheck
+      }
+    } else {
+      return { safe: false, reason: 'WITH statement missing target SELECT' }
+    }
+
+    // Check all CTE bindings (WITH alias AS (statement))
+    if (Array.isArray(s.bind)) {
+      for (const item of s.bind) {
+        if (item && typeof item === 'object' && item.statement) {
+          const bindCheck = assertReadOnlyStatement(item.statement)
+          if (!bindCheck.safe) {
+            return bindCheck
+          }
+        }
+      }
+    }
+
+    return { safe: true }
+  }
+
+  return {
+    safe: false,
+    reason: `Only read-only SELECT and WITH statements are allowed. Encountered: ${stmtType.toUpperCase() || 'UNKNOWN'}`,
+  }
 }
 
 export function sanitizeSQL(sql: string): SanitizeResult {
@@ -88,11 +149,9 @@ export function sanitizeSQL(sql: string): SanitizeResult {
   }
 
   const statement = ast[0]
-  if (statement.type !== 'select' && statement.type !== 'with') {
-    return {
-      safe: false,
-      reason: `Only read-only SELECT or WITH statements are allowed. Encountered: ${statement.type.toUpperCase()}`,
-    }
+  const readOnlyCheck = assertReadOnlyStatement(statement)
+  if (!readOnlyCheck.safe) {
+    return readOnlyCheck
   }
 
   const dangerousFn = findDangerousFunction(statement)

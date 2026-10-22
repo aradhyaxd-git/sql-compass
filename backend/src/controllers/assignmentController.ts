@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express'
+import mongoose from 'mongoose'
 import Assignment from '../models/Assignment.js'
 import { getSchemaForTables } from '../services/schemaService.js'
-
 
 export const getAllAssignments = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -16,11 +16,15 @@ export const getAllAssignments = async (req: Request, res: Response): Promise<vo
   }
 }
 
-
-
 export const getAssignmentById = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params
+    const id = String(req.params.id)
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(400).json({ success: false, message: 'Invalid assignment ID format' })
+      return
+    }
+
     const assignment = await Assignment.findById(id).lean()
 
     if (!assignment) {
@@ -29,16 +33,20 @@ export const getAssignmentById = async (req: Request, res: Response): Promise<vo
     }
 
     res.status(200).json({ success: true, data: assignment })
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error)
-    res.status(500).json({ success: false, message: msg })
+  } catch {
+    res.status(500).json({ success: false, message: 'Internal server error' })
   }
 }
 
-
 export const getAssignmentSchema = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params
+    const id = String(req.params.id)
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(400).json({ success: false, message: 'Invalid assignment ID format' })
+      return
+    }
+
     const assignment = await Assignment.findById(id).select('tableNames').lean()
 
     if (!assignment) {
@@ -53,8 +61,7 @@ export const getAssignmentSchema = async (req: Request, res: Response): Promise<
 
     const schema = await getSchemaForTables(assignment.tableNames)
     res.status(200).json({ success: true, data: schema })
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error)
-    res.status(500).json({ success: false, message: msg })
+  } catch {
+    res.status(500).json({ success: false, message: 'Internal server error' })
   }
 }

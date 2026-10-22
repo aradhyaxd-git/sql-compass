@@ -50,7 +50,9 @@ export async function runEvals() {
   let lengthCompliant = 0
   let conceptHits = 0
 
-  const hasApiKey = Boolean(process.env.LLM_API_KEY || process.env.GEMINI_API_KEY)
+  const hasApiKey =
+    process.env.EVAL_OFFLINE !== 'true' &&
+    Boolean(process.env.GROQ_API_KEY || process.env.LLM_API_KEY || process.env.GEMINI_API_KEY)
 
   for (const c of cases) {
     const assignment = assignmentMap.get(c.assignmentTitle)

@@ -16,10 +16,6 @@ export const getModel = (role: ModelRole): BaseChatModel => {
 
   if (provider === 'groq') {
     const apiKey = process.env.GROQ_API_KEY || ''
-    // Groq free tier available models:
-    // - classify: openai/gpt-oss-20b (fast, structured outputs, JSON mode)
-    // - generate: openai/gpt-oss-120b (high reasoning accuracy, structured outputs)
-    // - judge: openai/gpt-oss-120b
     const groqModelMap: Record<ModelRole, string> = {
       classify: process.env.CLASSIFY_MODEL || 'openai/gpt-oss-20b',
       generate: process.env.GENERATE_MODEL || 'openai/gpt-oss-120b',
@@ -30,6 +26,7 @@ export const getModel = (role: ModelRole): BaseChatModel => {
       apiKey,
       model: groqModelMap[role],
       temperature: temperatureMap[role],
+      maxRetries: 1,
     })
   }
 

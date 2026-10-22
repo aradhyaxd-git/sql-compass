@@ -4,6 +4,12 @@ import { logger } from '../utils/logger.js'
 
 const { Pool } = pg
 
+const isProduction = process.env.NODE_ENV === 'production'
+
+if (isProduction && !process.env.SANDBOX_RO_URL) {
+  throw new Error('SANDBOX_RO_URL must be explicitly configured in production to ensure read-only privileges')
+}
+
 const rawUrl = process.env.SANDBOX_RO_URL || process.env.NEON_DATABASE_URL
 const connectionString = rawUrl ? rawUrl.trim() : undefined
 
@@ -28,7 +34,7 @@ export const connectSandboxDB = async (): Promise<void> => {
     const client = await sandboxPool.connect()
     await client.query('SELECT 1')
     client.release()
-    logger.info('Neon sandbox connected successfully', {
+    logger.info('Sandbox database connected successfully', {
       event: 'postgres_connected',
     })
   } catch (error) {

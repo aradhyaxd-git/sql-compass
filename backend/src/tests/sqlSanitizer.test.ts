@@ -8,6 +8,7 @@ const legitimateQueries = [
   '/* multi line comment */ SELECT 1',
   'SELECT p.name, p.price, c.name FROM products p JOIN categories c ON p.category_id = c.id',
   'WITH cte AS (SELECT id, salary FROM employees) SELECT * FROM cte WHERE salary > 50000',
+  'WITH RECURSIVE cnt(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM cnt WHERE x < 5) SELECT * FROM cnt',
   'SELECT department, COUNT(*), AVG(salary) FROM employees GROUP BY department HAVING AVG(salary) > 60000',
   "SELECT * FROM orders WHERE status IN ('pending', 'completed')",
   "SELECT name, CASE WHEN salary > 80000 THEN 'High' ELSE 'Low' END AS band FROM employees",
@@ -47,6 +48,8 @@ const attackStrings = [
   'SELECT 1; SELECT 2;',
   'SELECT pg_sleep(10)',
   'SELECT (SELECT pg_sleep(5))',
+  'SELECT pg_sleep_for(interval \'10 seconds\')',
+  'SELECT pg_sleep_until(now() + interval \'10 seconds\')',
   "SELECT set_config('session_preload_libraries', 'malicious', false)",
   "SELECT pg_read_file('/etc/passwd')",
   "SELECT pg_write_file('shell.php', '<?php ?>')",
@@ -55,6 +58,11 @@ const attackStrings = [
   'SELECT pg_terminate_backend(1234)',
   'SELECT pg_cancel_backend(1234)',
   "SELECT lo_import('/etc/passwd')",
+  'WITH x AS (SELECT 1) DELETE FROM employees',
+  'WITH d AS (DELETE FROM employees RETURNING *) SELECT * FROM d',
+  "SELECT query_to_xml_and_xmlschema('SELECT 1')",
+  'SELECT pg_advisory_lock(1)',
+  'SELECT pg_advisory_xact_lock(1)',
 ]
 
 console.log('Testing SQL Sanitizer...')
@@ -69,7 +77,7 @@ for (const [i, q] of legitimateQueries.entries()) {
   }
 }
 console.log(`Legitimate queries passed: ${passedLegit}/${legitimateQueries.length}`)
-assert.strictEqual(passedLegit, 30, 'All 30 legitimate queries must pass')
+assert.strictEqual(passedLegit, legitimateQueries.length, `All ${legitimateQueries.length} legitimate queries must pass`)
 
 let blockedAttacks = 0
 for (const [i, a] of attackStrings.entries()) {
@@ -81,6 +89,6 @@ for (const [i, a] of attackStrings.entries()) {
   }
 }
 console.log(`Attack strings blocked: ${blockedAttacks}/${attackStrings.length}`)
-assert.strictEqual(blockedAttacks, 20, 'All 20 attack strings must be blocked')
+assert.strictEqual(blockedAttacks, attackStrings.length, `All ${attackStrings.length} attack strings must be blocked`)
 
 console.log('[SUCCESS] Sanitizer test suite passed successfully.')
