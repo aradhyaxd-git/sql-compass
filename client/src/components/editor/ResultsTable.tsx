@@ -1,5 +1,6 @@
-import { motion } from 'framer-motion'
-import { CheckCircle2, AlertCircle, Play, Download } from 'lucide-react'
+import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { CheckCircle2, AlertCircle, Play, Download, ChevronDown, ChevronUp, Cpu, Info } from 'lucide-react'
 import type { QueryState } from '@/types/query.types'
 
 interface Props {
@@ -96,6 +97,8 @@ function ExecutingState() {
 }
 
 export default function ResultsTable({ queryState }: Props) {
+  const [showPlanDetails, setShowPlanDetails] = useState(false)
+
   if (queryState.status === 'idle') return <IdleState />
   if (queryState.status === 'loading') return <ExecutingState />
 
@@ -237,6 +240,29 @@ export default function ResultsTable({ queryState }: Props) {
                   Seq Scan
                 </span>
               )}
+              <button
+                type="button"
+                onClick={() => setShowPlanDetails((prev) => !prev)}
+                title="Toggle detailed execution plan"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 3,
+                  padding: '1px 6px',
+                  borderRadius: 3,
+                  background: showPlanDetails ? 'var(--brand-primary)' : 'var(--bg-canvas)',
+                  border: '1px solid',
+                  borderColor: showPlanDetails ? 'var(--brand-primary)' : 'var(--border-default)',
+                  color: showPlanDetails ? '#fff' : 'var(--text-secondary)',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 10,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <span>Plan</span>
+                {showPlanDetails ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+              </button>
             </div>
           )}
         </div>
@@ -287,6 +313,140 @@ export default function ResultsTable({ queryState }: Props) {
           )}
         </div>
       </div>
+
+      {/* Interactive Execution Plan (EXPLAIN) Drawer */}
+      <AnimatePresence>
+        {showPlanDetails && queryState.data.executionPlan && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.18, ease: 'easeOut' }}
+            style={{
+              overflow: 'hidden',
+              borderBottom: '1px solid var(--border-default)',
+              background: 'var(--bg-canvas)',
+              padding: '12px 16px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Cpu size={14} color="var(--brand-primary)" />
+                <span style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: 'var(--text-primary)',
+                  letterSpacing: '0.04em',
+                }}>
+                  POSTGRESQL EXECUTION PLAN (EXPLAIN)
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                {queryState.data.executionPlan.nodeTypes.map((nt) => (
+                  <span
+                    key={nt}
+                    style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 10,
+                      background: 'var(--bg-subtle)',
+                      border: '1px solid var(--border-default)',
+                      color: 'var(--text-secondary)',
+                      padding: '1px 6px',
+                      borderRadius: 3,
+                    }}
+                  >
+                    {nt}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+              gap: 8,
+              marginBottom: 10,
+            }}>
+              <div style={{
+                background: 'var(--bg-subtle)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 4,
+                padding: '6px 10px',
+              }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)' }}>TOTAL COST</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+                  {queryState.data.executionPlan.totalCost.toFixed(2)}
+                </div>
+              </div>
+
+              <div style={{
+                background: 'var(--bg-subtle)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 4,
+                padding: '6px 10px',
+              }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)' }}>STARTUP COST</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)' }}>
+                  {queryState.data.executionPlan.startupCost.toFixed(2)}
+                </div>
+              </div>
+
+              <div style={{
+                background: 'var(--bg-subtle)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 4,
+                padding: '6px 10px',
+              }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)' }}>ESTIMATED ROWS</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)' }}>
+                  {queryState.data.executionPlan.planRows}
+                </div>
+              </div>
+
+              <div style={{
+                background: 'var(--bg-subtle)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 4,
+                padding: '6px 10px',
+              }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)' }}>PLAN WIDTH</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)' }}>
+                  {queryState.data.executionPlan.planWidth} B
+                </div>
+              </div>
+            </div>
+
+            <div style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 8,
+              padding: '6px 10px',
+              borderRadius: 4,
+              background: queryState.data.executionPlan.hasSeqScan && !queryState.data.executionPlan.hasIndexScan
+                ? 'rgba(234, 179, 8, 0.08)'
+                : 'rgba(56, 189, 248, 0.06)',
+              border: '1px solid',
+              borderColor: queryState.data.executionPlan.hasSeqScan && !queryState.data.executionPlan.hasIndexScan
+                ? 'rgba(234, 179, 8, 0.25)'
+                : 'rgba(56, 189, 248, 0.2)',
+            }}>
+              <Info
+                size={13}
+                color={queryState.data.executionPlan.hasSeqScan && !queryState.data.executionPlan.hasIndexScan ? '#eab308' : 'var(--brand-primary)'}
+                style={{ marginTop: 2, flexShrink: 0 }}
+              />
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                {queryState.data.executionPlan.hasSeqScan && !queryState.data.executionPlan.hasIndexScan
+                  ? 'Sequential Scan detected: The planner must scan every table page. On large production datasets, consider indexing predicate columns to leverage an Index Scan.'
+                  : queryState.data.executionPlan.hasIndexScan
+                  ? 'Index Scan active: The planner uses an existing index structure, minimizing read latency and page reads.'
+                  : 'Execution plan nodes processed efficiently within sandbox resource constraints.'}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Results Grid Table */}
       <div style={{ flex: 1, overflow: 'auto' }}>
