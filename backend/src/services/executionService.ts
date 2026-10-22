@@ -45,22 +45,84 @@ function parseExecutionPlan(planOutput: unknown): ExecutionPlanSummary | undefin
   }
 }
 
+export interface ExecutionOptions {
+  bypassLimit?: boolean
+  allowWriteSandbox?: boolean
+  verificationSql?: string
+}
+
 export const executeUserQuery = async (
   sql: string,
-  options: { bypassLimit?: boolean } = {}
+  options: ExecutionOptions = {}
 ): Promise<QueryResult> => {
-  const { safe, reason } = sanitizeSQL(sql)
+  const allowWrite = options.allowWriteSandbox ?? true
+  const { safe, reason, category } = sanitizeSQL(sql, { allowWriteSandbox: allowWrite })
   if (!safe) {
     throw new Error(reason ?? 'Query failed safety check')
   }
 
   const cleanedSQL = sql.trim().replace(/;+\s*$/, '')
+  const client = await sandboxPool.connect()
+  const startTime = Date.now()
+
+  if (category === 'write') {
+    try {
+      await client.query('BEGIN')
+      await client.query(`SET LOCAL statement_timeout = '${QUERY_TIMEOUT_MS}'`)
+
+      const userRes = await client.query({
+        text: cleanedSQL,
+        rowMode: 'array',
+      })
+
+      let finalResult
+      if (options.verificationSql) {
+        const verifyClean = options.verificationSql.trim().replace(/;+\s*$/, '')
+        finalResult = await client.query({
+          text: `SELECT * FROM (\n${verifyClean}\n) AS _verification LIMIT ${ROW_LIMIT}`,
+          rowMode: 'array',
+        })
+      } else if (userRes.fields && userRes.fields.length > 0) {
+        finalResult = userRes
+      } else {
+        finalResult = {
+          fields: [{ name: 'command' }, { name: 'affected_rows' }],
+          rows: [[userRes.command, userRes.rowCount ?? 0]],
+        }
+      }
+
+      await client.query('ROLLBACK')
+
+      const duration = Date.now() - startTime
+      const columns = finalResult.fields.map((f: { name: string }) => f.name)
+      const rawTuples = finalResult.rows as unknown[][]
+      const rows = rawTuples.map((tuple) => {
+        const rowObj: Record<string, unknown> = {}
+        columns.forEach((col, idx) => {
+          rowObj[col] = tuple[idx]
+        })
+        return rowObj
+      })
+
+      return {
+        columns,
+        rows,
+        rawTuples,
+        rowCount: rawTuples.length,
+        duration,
+      } as QueryResult
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => {})
+      const msg = error instanceof Error ? error.message : String(error)
+      throw new Error(msg)
+    } finally {
+      client.release()
+    }
+  }
+
   const finalSQL = options.bypassLimit
     ? `${cleanedSQL}\n`
     : `SELECT * FROM (\n${cleanedSQL}\n) AS _user_query LIMIT ${ROW_LIMIT}`
-
-  const client = await sandboxPool.connect()
-  const startTime = Date.now()
 
   try {
     await client.query('BEGIN READ ONLY')

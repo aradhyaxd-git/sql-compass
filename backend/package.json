@@ -7,7 +7,7 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "seed": "tsx src/seed.ts",
-    "test": "tsx src/tests/sqlSanitizer.test.ts && tsx src/tests/judgeService.test.ts && tsx src/tests/hintCacheService.test.ts && tsx src/tests/concurrencyGuard.test.ts && tsx src/tests/dialectLinter.test.ts && tsx src/tests/metricsService.test.ts",
+    "test": "tsx src/tests/sqlSanitizer.test.ts && tsx src/tests/judgeService.test.ts && tsx src/tests/hintCacheService.test.ts && tsx src/tests/concurrencyGuard.test.ts && tsx src/tests/dialectLinter.test.ts && tsx src/tests/metricsService.test.ts && tsx src/tests/writeSandbox.test.ts",
     "eval": "tsx evals/runner.ts"
   },
   "type": "module",

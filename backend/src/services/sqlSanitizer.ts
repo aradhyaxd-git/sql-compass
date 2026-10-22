@@ -38,10 +38,28 @@ const DANGEROUS_FUNCTIONS = new Set([
 
 const MAX_QUERY_LENGTH = 4000
 
+export type StatementCategory = 'read' | 'write'
+
 export interface SanitizeResult {
   safe: boolean
   reason?: string
+  category?: StatementCategory
+  statementType?: string
 }
+
+export interface SanitizeOptions {
+  allowWriteSandbox?: boolean
+}
+
+const ALLOWED_WRITE_STATEMENTS = new Set([
+  'insert',
+  'update',
+  'delete',
+  'create table',
+  'alter table',
+  'create index',
+  'drop table',
+])
 
 function findDangerousFunction(node: unknown): string | null {
   if (!node || typeof node !== 'object') {
@@ -70,7 +88,10 @@ function findDangerousFunction(node: unknown): string | null {
   return null
 }
 
-function assertReadOnlyStatement(stmt: unknown): { safe: boolean; reason?: string } {
+function checkStatementSafety(
+  stmt: unknown,
+  options: SanitizeOptions = {}
+): { safe: boolean; reason?: string; category?: StatementCategory; statementType?: string } {
   if (!stmt || typeof stmt !== 'object') {
     return { safe: false, reason: 'Invalid statement node' }
   }
@@ -79,13 +100,12 @@ function assertReadOnlyStatement(stmt: unknown): { safe: boolean; reason?: strin
   const stmtType = String(s.type || '').toLowerCase()
 
   if (stmtType === 'select') {
-    return { safe: true }
+    return { safe: true, category: 'read', statementType: 'select' }
   }
 
   if (stmtType === 'with' || stmtType === 'with recursive') {
-    // Check main CTE target statement (statement.in)
     if (s.in && typeof s.in === 'object') {
-      const inCheck = assertReadOnlyStatement(s.in)
+      const inCheck = checkStatementSafety(s.in, options)
       if (!inCheck.safe) {
         return inCheck
       }
@@ -93,11 +113,10 @@ function assertReadOnlyStatement(stmt: unknown): { safe: boolean; reason?: strin
       return { safe: false, reason: 'WITH statement missing target SELECT' }
     }
 
-    // Check all CTE bindings (WITH alias AS (statement))
     if (Array.isArray(s.bind)) {
       for (const item of s.bind) {
         if (item && typeof item === 'object' && item.statement) {
-          const bindCheck = assertReadOnlyStatement(item.statement)
+          const bindCheck = checkStatementSafety(item.statement, options)
           if (!bindCheck.safe) {
             return bindCheck
           }
@@ -105,16 +124,22 @@ function assertReadOnlyStatement(stmt: unknown): { safe: boolean; reason?: strin
       }
     }
 
-    return { safe: true }
+    return { safe: true, category: 'read', statementType: 'with' }
+  }
+
+  if (options.allowWriteSandbox && ALLOWED_WRITE_STATEMENTS.has(stmtType)) {
+    return { safe: true, category: 'write', statementType: stmtType }
   }
 
   return {
     safe: false,
-    reason: `Only read-only SELECT and WITH statements are allowed. Encountered: ${stmtType.toUpperCase() || 'UNKNOWN'}`,
+    reason: options.allowWriteSandbox
+      ? `Statement type '${stmtType.toUpperCase() || 'UNKNOWN'}' is not permitted in sandbox.`
+      : `Only read-only SELECT and WITH statements are allowed. Encountered: ${stmtType.toUpperCase() || 'UNKNOWN'}`,
   }
 }
 
-export function sanitizeSQL(sql: string): SanitizeResult {
+export function sanitizeSQL(sql: string, options: SanitizeOptions = {}): SanitizeResult {
   if (!sql || sql.trim().length === 0) {
     return { safe: false, reason: 'Query is empty' }
   }
@@ -149,9 +174,9 @@ export function sanitizeSQL(sql: string): SanitizeResult {
   }
 
   const statement = ast[0]
-  const readOnlyCheck = assertReadOnlyStatement(statement)
-  if (!readOnlyCheck.safe) {
-    return readOnlyCheck
+  const safetyCheck = checkStatementSafety(statement, options)
+  if (!safetyCheck.safe) {
+    return safetyCheck
   }
 
   const dangerousFn = findDangerousFunction(statement)
@@ -162,5 +187,9 @@ export function sanitizeSQL(sql: string): SanitizeResult {
     }
   }
 
-  return { safe: true }
+  return {
+    safe: true,
+    category: safetyCheck.category ?? 'read',
+    statementType: safetyCheck.statementType,
+  }
 }
