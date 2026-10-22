@@ -5,6 +5,9 @@ import { ThemeProvider } from '@/context/ThemeContext'
 
 import Landing from '@/pages/LandingPage'
 import Auth from '@/pages/Auth'
+import ResetPassword from '@/pages/ResetPassword'
+import PrivacyPolicy from '@/pages/PrivacyPolicy'
+import TermsOfService from '@/pages/TermsOfService'
 import Dashboard from '@/pages/Dashboard'
 import Attempt from '@/pages/Attempt'
 import Profile from '@/pages/Profile'
@@ -47,6 +50,9 @@ export default function App() {
             {/* Public */}
             <Route path="/" element={<Landing />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/terms" element={<TermsOfService />} />
 
             {/* Protected */}
             <Route

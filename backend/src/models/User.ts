@@ -7,6 +7,12 @@ export interface IUser extends Document {
   googleId?: string
   passwordHash?: string
   role: 'user' | 'admin'
+  twoFactorEnabled: boolean
+  twoFactorSecret?: string
+  twoFactorTempSecret?: string
+  lastTotpUsed?: string
+  passwordResetTokenHash?: string
+  passwordResetExpires?: Date
   createdAt: Date
   updatedAt: Date
 }
@@ -42,6 +48,30 @@ const userSchema = new Schema<IUser>(
       type: String,
       enum: ['user', 'admin'],
       default: 'user',
+    },
+    twoFactorEnabled: {
+      type: Boolean,
+      default: false,
+    },
+    twoFactorSecret: {
+      type: String,
+      select: false,
+    },
+    twoFactorTempSecret: {
+      type: String,
+      select: false,
+    },
+    lastTotpUsed: {
+      type: String,
+      select: false,
+    },
+    passwordResetTokenHash: {
+      type: String,
+      select: false,
+    },
+    passwordResetExpires: {
+      type: Date,
+      select: false,
     },
   },
   { timestamps: true }

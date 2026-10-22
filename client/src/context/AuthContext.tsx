@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import api, { setAuthToken } from '@/services/api'
+import api from '@/services/api'
 
 export interface UserProfile {
   id: string
@@ -8,6 +8,7 @@ export interface UserProfile {
   firstName: string
   imageUrl?: string
   role: 'user' | 'admin'
+  twoFactorEnabled: boolean
   primaryEmailAddress?: {
     emailAddress: string
   }
@@ -19,6 +20,13 @@ interface RawUserPayload {
   name: string
   picture?: string
   role?: 'user' | 'admin'
+  twoFactorEnabled?: boolean
+}
+
+export interface AuthLoginResponse {
+  mfaRequired: boolean
+  challengeToken?: string
+  email?: string
 }
 
 interface AuthContextType {
@@ -27,15 +35,21 @@ interface AuthContextType {
   isLoaded: boolean
   isSignedIn: boolean
   signInWithGoogle: () => Promise<void>
-  signInWithPassword: (email: string, password: string) => Promise<void>
-  handleOAuthCallback: (code: string) => Promise<void>
+  signInWithPassword: (email: string, password: string) => Promise<AuthLoginResponse>
+  handleOAuthCallback: (code: string) => Promise<AuthLoginResponse>
+  verify2FALogin: (challengeToken: string, code: string) => Promise<void>
+  setup2FA: () => Promise<{ secret: string; qrCodeUrl: string }>
+  confirm2FA: (code: string) => Promise<void>
+  disable2FA: (code: string) => Promise<void>
+  requestPasswordReset: (email: string) => Promise<{ message: string; resetToken?: string; expiresInMinutes: number }>
+  verifyResetToken: (token: string) => Promise<{ valid: boolean; email?: string; remainingSeconds?: number }>
+  completePasswordReset: (token: string, newPassword: string) => Promise<void>
   signOut: () => Promise<void>
+  refreshUser: () => Promise<void>
   getToken: () => Promise<string | null>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
-
-const TOKEN_KEY = 'sqlcompass_token'
 
 function formatUserProfile(raw: RawUserPayload): UserProfile {
   const nameParts = (raw.name || '').trim().split(' ')
@@ -48,6 +62,7 @@ function formatUserProfile(raw: RawUserPayload): UserProfile {
     firstName,
     imageUrl: raw.picture || '',
     role: raw.role || 'user',
+    twoFactorEnabled: !!raw.twoFactorEnabled,
     primaryEmailAddress: {
       emailAddress: raw.email,
     },
@@ -55,48 +70,37 @@ function formatUserProfile(raw: RawUserPayload): UserProfile {
 }
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [token, setTokenState] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY))
   const [user, setUser] = useState<UserProfile | null>(null)
   const [isLoaded, setIsLoaded] = useState<boolean>(false)
 
-  const applySession = useCallback((newToken: string | null, rawUser: RawUserPayload | null) => {
-    if (newToken && rawUser) {
-      localStorage.setItem(TOKEN_KEY, newToken)
-      setAuthToken(newToken)
-      setTokenState(newToken)
-      setUser(formatUserProfile(rawUser))
-    } else {
-      localStorage.removeItem(TOKEN_KEY)
-      setAuthToken(null)
-      setTokenState(null)
+  // Clear any legacy localStorage token to ensure 100% cookie isolation
+  useEffect(() => {
+    try {
+      localStorage.removeItem('sqlcompass_token')
+      localStorage.removeItem('token')
+    } catch {
+      // Ignore storage restrictions
+    }
+  }, [])
+
+  const refreshUser = useCallback(async () => {
+    try {
+      const res = await api.get('/api/auth/me')
+      if (res.data?.success && res.data?.data?.user) {
+        setUser(formatUserProfile(res.data.data.user))
+      } else {
+        setUser(null)
+      }
+    } catch {
       setUser(null)
     }
   }, [])
 
   useEffect(() => {
-    const existingToken = localStorage.getItem(TOKEN_KEY)
-    if (!existingToken) {
+    refreshUser().finally(() => {
       setIsLoaded(true)
-      return
-    }
-
-    setAuthToken(existingToken)
-    api
-      .get('/api/auth/me')
-      .then((res) => {
-        if (res.data?.success && res.data?.data?.user) {
-          setUser(formatUserProfile(res.data.data.user))
-        } else {
-          applySession(null, null)
-        }
-      })
-      .catch(() => {
-        applySession(null, null)
-      })
-      .finally(() => {
-        setIsLoaded(true)
-      })
-  }, [applySession])
+    })
+  }, [refreshUser])
 
   const signInWithGoogle = async () => {
     const redirectUri = `${window.location.origin}/auth`
@@ -108,44 +112,134 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }
 
-  const handleOAuthCallback = async (code: string) => {
+  const handleOAuthCallback = async (code: string): Promise<AuthLoginResponse> => {
     const redirectUri = `${window.location.origin}/auth`
     const res = await api.post('/api/auth/google/callback', { code, redirectUri })
-    if (res.data?.success && res.data?.data?.token) {
-      applySession(res.data.data.token, res.data.data.user)
+
+    if (res.data?.mfaRequired) {
+      return {
+        mfaRequired: true,
+        challengeToken: res.data.challengeToken,
+        email: res.data.email,
+      }
+    }
+
+    if (res.data?.success && res.data?.data?.user) {
+      setUser(formatUserProfile(res.data.data.user))
+      return { mfaRequired: false }
+    }
+
+    throw new Error(res.data?.message || 'OAuth token exchange failed')
+  }
+
+  const signInWithPassword = async (email: string, password: string): Promise<AuthLoginResponse> => {
+    const res = await api.post('/api/auth/login', { email, password })
+
+    if (res.data?.mfaRequired) {
+      return {
+        mfaRequired: true,
+        challengeToken: res.data.challengeToken,
+        email: res.data.email,
+      }
+    }
+
+    if (res.data?.success && res.data?.data?.user) {
+      setUser(formatUserProfile(res.data.data.user))
+      return { mfaRequired: false }
+    }
+
+    throw new Error(res.data?.message || 'Invalid credentials')
+  }
+
+  const verify2FALogin = async (challengeToken: string, code: string): Promise<void> => {
+    const res = await api.post('/api/auth/2fa/login', { challengeToken, code })
+    if (res.data?.success && res.data?.data?.user) {
+      setUser(formatUserProfile(res.data.data.user))
     } else {
-      throw new Error(res.data?.message || 'OAuth token exchange failed')
+      throw new Error(res.data?.message || 'Two-factor verification failed')
     }
   }
 
-  const signInWithPassword = async (email: string, password: string) => {
-    const res = await api.post('/api/auth/login', { email, password })
-    if (res.data?.success && res.data?.data?.token) {
-      applySession(res.data.data.token, res.data.data.user)
+  const setup2FA = async (): Promise<{ secret: string; qrCodeUrl: string }> => {
+    const res = await api.post('/api/auth/2fa/setup')
+    if (res.data?.success && res.data?.data) {
+      return res.data.data
+    }
+    throw new Error(res.data?.message || 'Failed to initialize 2FA setup')
+  }
+
+  const confirm2FA = async (code: string): Promise<void> => {
+    const res = await api.post('/api/auth/2fa/confirm', { code })
+    if (!res.data?.success) {
+      throw new Error(res.data?.message || 'Failed to confirm 2FA code')
+    }
+    await refreshUser()
+  }
+
+  const disable2FA = async (code: string): Promise<void> => {
+    const res = await api.post('/api/auth/2fa/disable', { code })
+    if (!res.data?.success) {
+      throw new Error(res.data?.message || 'Failed to disable 2FA')
+    }
+    await refreshUser()
+  }
+
+  const requestPasswordReset = async (email: string) => {
+    const res = await api.post('/api/auth/forgot-password', { email })
+    if (res.data?.success) {
+      return res.data
+    }
+    throw new Error(res.data?.message || 'Failed to initiate password reset')
+  }
+
+  const verifyResetToken = async (token: string) => {
+    const res = await api.get('/api/auth/verify-reset-token', { params: { token } })
+    if (res.data?.success && res.data?.data) {
+      return res.data.data
+    }
+    return { valid: false }
+  }
+
+  const completePasswordReset = async (token: string, newPassword: string): Promise<void> => {
+    const res = await api.post('/api/auth/reset-password', { token, newPassword })
+    if (res.data?.success && res.data?.data?.user) {
+      setUser(formatUserProfile(res.data.data.user))
     } else {
-      throw new Error(res.data?.message || 'Invalid credentials')
+      throw new Error(res.data?.message || 'Failed to complete password reset')
     }
   }
 
   const signOut = async () => {
-    applySession(null, null)
+    try {
+      await api.post('/api/auth/logout')
+    } finally {
+      setUser(null)
+    }
   }
 
   const getToken = async () => {
-    return token
+    return null
   }
 
   return (
     <AuthContext.Provider
       value={{
-        token,
+        token: null,
         user,
         isLoaded,
-        isSignedIn: Boolean(token && user),
+        isSignedIn: Boolean(user),
         signInWithGoogle,
         signInWithPassword,
         handleOAuthCallback,
+        verify2FALogin,
+        setup2FA,
+        confirm2FA,
+        disable2FA,
+        requestPasswordReset,
+        verifyResetToken,
+        completePasswordReset,
         signOut,
+        refreshUser,
         getToken,
       }}
     >

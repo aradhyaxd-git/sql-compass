@@ -2,6 +2,9 @@ import '../env.js'
 import { OAuth2Client } from 'google-auth-library'
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
+import crypto from 'crypto'
+import { generateSecret, generateURI, verifySync } from 'otplib'
+import QRCode from 'qrcode'
 import User, { type IUser } from '../models/User.js'
 import { logger } from '../utils/logger.js'
 
@@ -9,6 +12,8 @@ const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || ''
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || ''
 const JWT_SECRET = process.env.JWT_SECRET || 'sql-compass-secure-jwt-default-secret-change-in-production'
 const JWT_EXPIRES_IN = '7d'
+const CHALLENGE_EXPIRES_IN = '5m'
+const RESET_TOKEN_EXPIRES_MS = 15 * 60 * 1000
 
 const oauthClient = new OAuth2Client(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET)
 
@@ -18,6 +23,30 @@ export interface UserSessionPayload {
   name: string
   picture?: string
   role: 'user' | 'admin'
+}
+
+export interface UserResponse {
+  id: string
+  email: string
+  name: string
+  picture?: string
+  role: string
+  twoFactorEnabled: boolean
+}
+
+export type AuthResult =
+  | { mfaRequired: false; token: string; user: UserResponse }
+  | { mfaRequired: true; challengeToken: string; email: string }
+
+export function getAuthCookieOptions() {
+  const isProduction = process.env.NODE_ENV === 'production'
+  return {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    path: '/',
+  }
 }
 
 export function generateSessionToken(user: IUser): string {
@@ -36,6 +65,18 @@ export function verifySessionToken(token: string): UserSessionPayload {
   return jwt.verify(token, JWT_SECRET) as UserSessionPayload
 }
 
+export function generate2FAChallengeToken(userId: string): string {
+  return jwt.sign({ sub: userId, type: '2fa_challenge' }, JWT_SECRET, { expiresIn: CHALLENGE_EXPIRES_IN })
+}
+
+export function verify2FAChallengeToken(token: string): { sub: string } {
+  const payload = jwt.verify(token, JWT_SECRET) as { sub: string; type?: string }
+  if (payload.type !== '2fa_challenge') {
+    throw new Error('Invalid challenge token')
+  }
+  return { sub: payload.sub }
+}
+
 export function getGoogleAuthorizationUrl(redirectUri: string): string {
   if (!GOOGLE_CLIENT_ID) {
     throw new Error('GOOGLE_CLIENT_ID is not configured in environment variables')
@@ -52,7 +93,7 @@ export function getGoogleAuthorizationUrl(redirectUri: string): string {
 export async function exchangeGoogleCode(
   code: string,
   redirectUri: string
-): Promise<{ token: string; user: { id: string; email: string; name: string; picture?: string; role: string } }> {
+): Promise<AuthResult> {
   if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
     throw new Error('Google OAuth is not configured on server (missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET)')
   }
@@ -106,8 +147,18 @@ export async function exchangeGoogleCode(
     await user.save()
   }
 
+  if (user.twoFactorEnabled) {
+    const challengeToken = generate2FAChallengeToken(user._id.toString())
+    return {
+      mfaRequired: true,
+      challengeToken,
+      email: user.email,
+    }
+  }
+
   const token = generateSessionToken(user)
   return {
+    mfaRequired: false,
     token,
     user: {
       id: user._id.toString(),
@@ -115,6 +166,7 @@ export async function exchangeGoogleCode(
       name: user.name,
       picture: user.picture,
       role: user.role,
+      twoFactorEnabled: user.twoFactorEnabled,
     },
   }
 }
@@ -122,7 +174,7 @@ export async function exchangeGoogleCode(
 export async function authenticateWithPassword(
   emailInput: string,
   passwordInput: string
-): Promise<{ token: string; user: { id: string; email: string; name: string; picture?: string; role: string } }> {
+): Promise<AuthResult> {
   const email = (emailInput || '').toLowerCase().trim()
   const password = (passwordInput || '').trim()
 
@@ -146,8 +198,18 @@ export async function authenticateWithPassword(
       await adminUser.save()
     }
 
+    if (adminUser.twoFactorEnabled) {
+      const challengeToken = generate2FAChallengeToken(adminUser._id.toString())
+      return {
+        mfaRequired: true,
+        challengeToken,
+        email: adminUser.email,
+      }
+    }
+
     const token = generateSessionToken(adminUser)
     return {
+      mfaRequired: false,
       token,
       user: {
         id: adminUser._id.toString(),
@@ -155,6 +217,7 @@ export async function authenticateWithPassword(
         name: adminUser.name,
         picture: adminUser.picture,
         role: adminUser.role,
+        twoFactorEnabled: adminUser.twoFactorEnabled,
       },
     }
   }
@@ -169,8 +232,18 @@ export async function authenticateWithPassword(
     throw new Error('Invalid email or password')
   }
 
+  if (existingUser.twoFactorEnabled) {
+    const challengeToken = generate2FAChallengeToken(existingUser._id.toString())
+    return {
+      mfaRequired: true,
+      challengeToken,
+      email: existingUser.email,
+    }
+  }
+
   const token = generateSessionToken(existingUser)
   return {
+    mfaRequired: false,
     token,
     user: {
       id: existingUser._id.toString(),
@@ -178,6 +251,235 @@ export async function authenticateWithPassword(
       name: existingUser.name,
       picture: existingUser.picture,
       role: existingUser.role,
+      twoFactorEnabled: existingUser.twoFactorEnabled,
+    },
+  }
+}
+
+export async function verify2FALogin(
+  challengeToken: string,
+  code: string
+): Promise<{ token: string; user: UserResponse }> {
+  const { sub: userId } = verify2FAChallengeToken(challengeToken)
+  const normalizedCode = (code || '').trim()
+
+  if (!/^\d{6}$/.test(normalizedCode)) {
+    throw new Error('Authentication code must be a 6-digit number')
+  }
+
+  const user = await User.findById(userId).select('+twoFactorSecret +lastTotpUsed')
+  if (!user || !user.twoFactorEnabled || !user.twoFactorSecret) {
+    throw new Error('Two-factor authentication is not active on this account')
+  }
+
+  if (user.lastTotpUsed === normalizedCode) {
+    throw new Error('This authenticator code was already used. Please wait for the next code.')
+  }
+
+  const result = verifySync({
+    token: normalizedCode,
+    secret: user.twoFactorSecret,
+  })
+
+  if (!result.valid) {
+    throw new Error('Invalid authentication code. Please check your authenticator app.')
+  }
+
+  user.lastTotpUsed = normalizedCode
+  await user.save()
+
+  const token = generateSessionToken(user)
+  return {
+    token,
+    user: {
+      id: user._id.toString(),
+      email: user.email,
+      name: user.name,
+      picture: user.picture,
+      role: user.role,
+      twoFactorEnabled: user.twoFactorEnabled,
+    },
+  }
+}
+
+export async function generate2FASetup(
+  userId: string
+): Promise<{ secret: string; qrCodeUrl: string }> {
+  const user = await User.findById(userId)
+  if (!user) {
+    throw new Error('User not found')
+  }
+
+  const secret = generateSecret()
+  const otpauthUri = generateURI({
+    issuer: 'SQL Compass',
+    label: user.email,
+    secret,
+  })
+
+  const qrCodeUrl = await QRCode.toDataURL(otpauthUri)
+
+  user.twoFactorTempSecret = secret
+  await user.save()
+
+  return { secret, qrCodeUrl }
+}
+
+export async function confirm2FASetup(
+  userId: string,
+  code: string
+): Promise<{ success: boolean; message: string }> {
+  const normalizedCode = (code || '').trim()
+  if (!/^\d{6}$/.test(normalizedCode)) {
+    throw new Error('Authentication code must be a 6-digit number')
+  }
+
+  const user = await User.findById(userId).select('+twoFactorTempSecret +lastTotpUsed')
+  if (!user || !user.twoFactorTempSecret) {
+    throw new Error('No pending two-factor setup found. Please restart setup.')
+  }
+
+  const result = verifySync({
+    token: normalizedCode,
+    secret: user.twoFactorTempSecret,
+  })
+
+  if (!result.valid) {
+    throw new Error('Invalid verification code. Please ensure your device clock is synchronized.')
+  }
+
+  user.twoFactorEnabled = true
+  user.twoFactorSecret = user.twoFactorTempSecret
+  user.twoFactorTempSecret = undefined
+  user.lastTotpUsed = normalizedCode
+  await user.save()
+
+  logger.info('2FA enabled for user', { userId })
+  return { success: true, message: 'Two-factor authentication has been successfully enabled' }
+}
+
+export async function disable2FA(
+  userId: string,
+  code: string
+): Promise<{ success: boolean; message: string }> {
+  const normalizedCode = (code || '').trim()
+  const user = await User.findById(userId).select('+twoFactorSecret +lastTotpUsed')
+  if (!user || !user.twoFactorEnabled || !user.twoFactorSecret) {
+    throw new Error('Two-factor authentication is not enabled')
+  }
+
+  const result = verifySync({
+    token: normalizedCode,
+    secret: user.twoFactorSecret,
+  })
+
+  if (!result.valid) {
+    throw new Error('Invalid authentication code')
+  }
+
+  user.twoFactorEnabled = false
+  user.twoFactorSecret = undefined
+  user.lastTotpUsed = undefined
+  await user.save()
+
+  logger.info('2FA disabled for user', { userId })
+  return { success: true, message: 'Two-factor authentication has been disabled' }
+}
+
+export async function requestPasswordReset(
+  emailInput: string
+): Promise<{ success: boolean; message: string; resetToken?: string; expiresInMinutes: number }> {
+  const email = (emailInput || '').toLowerCase().trim()
+  if (!email) {
+    throw new Error('Email is required')
+  }
+
+  const user = await User.findOne({ email })
+  const rawToken = crypto.randomBytes(32).toString('hex')
+  const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex')
+
+  if (user) {
+    user.passwordResetTokenHash = tokenHash
+    user.passwordResetExpires = new Date(Date.now() + RESET_TOKEN_EXPIRES_MS)
+    await user.save()
+    logger.info('Password reset token generated', { userId: user._id.toString() })
+  }
+
+  const isDev = process.env.NODE_ENV !== 'production'
+  return {
+    success: true,
+    message: 'If an account exists with this email address, password reset instructions have been generated.',
+    ...(isDev || !process.env.SMTP_HOST ? { resetToken: rawToken } : {}),
+    expiresInMinutes: 15,
+  }
+}
+
+export async function verifyPasswordResetToken(
+  token: string
+): Promise<{ valid: boolean; email?: string; remainingSeconds?: number }> {
+  if (!token || typeof token !== 'string') {
+    return { valid: false }
+  }
+
+  const tokenHash = crypto.createHash('sha256').update(token.trim()).digest('hex')
+  const user = await User.findOne({
+    passwordResetTokenHash: tokenHash,
+    passwordResetExpires: { $gt: new Date() },
+  }).select('+passwordResetExpires')
+
+  if (!user || !user.passwordResetExpires) {
+    return { valid: false }
+  }
+
+  const remainingSeconds = Math.max(0, Math.floor((user.passwordResetExpires.getTime() - Date.now()) / 1000))
+  return {
+    valid: true,
+    email: user.email,
+    remainingSeconds,
+  }
+}
+
+export async function completePasswordReset(
+  token: string,
+  newPassword: string
+): Promise<{ token: string; user: UserResponse }> {
+  if (!token || typeof token !== 'string') {
+    throw new Error('Reset token is required')
+  }
+
+  const normalizedPassword = (newPassword || '').trim()
+  if (normalizedPassword.length < 8) {
+    throw new Error('Password must be at least 8 characters long')
+  }
+
+  const tokenHash = crypto.createHash('sha256').update(token.trim()).digest('hex')
+  const user = await User.findOne({
+    passwordResetTokenHash: tokenHash,
+    passwordResetExpires: { $gt: new Date() },
+  }).select('+passwordHash +passwordResetTokenHash +passwordResetExpires')
+
+  if (!user) {
+    throw new Error('Password reset token is invalid or has expired')
+  }
+
+  const salt = await bcrypt.genSalt(12)
+  user.passwordHash = await bcrypt.hash(normalizedPassword, salt)
+  user.passwordResetTokenHash = undefined
+  user.passwordResetExpires = undefined
+  await user.save()
+
+  logger.info('Password reset completed', { userId: user._id.toString() })
+
+  const sessionToken = generateSessionToken(user)
+  return {
+    token: sessionToken,
+    user: {
+      id: user._id.toString(),
+      email: user.email,
+      name: user.name,
+      picture: user.picture,
+      role: user.role,
+      twoFactorEnabled: user.twoFactorEnabled,
     },
   }
 }

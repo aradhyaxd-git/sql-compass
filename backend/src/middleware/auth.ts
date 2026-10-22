@@ -3,6 +3,13 @@ import { verifySessionToken } from '../services/authService.js'
 import { updateTraceUser } from '../utils/logger.js'
 
 function extractAuthToken(req: Request): string | null {
+  if (req.cookies?.token) {
+    return String(req.cookies.token).trim() || null
+  }
+  if (req.cookies?.__session) {
+    return String(req.cookies.__session).trim() || null
+  }
+
   const authHeader = req.headers.authorization
   if (authHeader?.startsWith('Bearer ')) {
     const bearer = authHeader.slice(7).trim()

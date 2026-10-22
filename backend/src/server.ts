@@ -1,6 +1,7 @@
 import './env.js'
 import express from 'express'
 import cors from 'cors'
+import cookieParser from 'cookie-parser'
 import { connectSandboxDB, sandboxPool } from './config/db.postgres.js'
 import { connectPersistenceDB } from './config/db.mongo.js'
 import assignmentRoutes from './routes/assignmentRouter.js'
@@ -62,6 +63,7 @@ app.use((_req, res, next) => {
 
 app.use(distributedTracingMiddleware)
 app.use(express.json({ limit: '50kb' }))
+app.use(cookieParser())
 
 // Fast public liveness probe (no DB connection acquired)
 app.get('/health', (_, res) => {
