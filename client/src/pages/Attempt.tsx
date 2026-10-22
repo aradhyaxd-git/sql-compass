@@ -13,6 +13,8 @@ import ResultsTable from '@/components/editor/ResultsTable'
 import HintPanel from '@/components/editor/HintPanel'
 import SuccessBanner from '@/components/editor/SuccessBanner'
 import SchemaViewer from '@/components/assignment/SchemaViewer'
+import { AttemptSkeleton } from '@/components/ui/Skeleton'
+import { toast } from 'sonner'
 import type { Difficulty } from '@/types/assignment.types'
 
 const DIFFICULTY_LABELS: Record<Difficulty, { label: string; color: string; bg: string; border: string }> = {
@@ -55,29 +57,6 @@ function DiffChip({ difficulty }: { difficulty: Difficulty }) {
   )
 }
 
-function LoadingScreen() {
-  return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'var(--bg-canvas)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-    }}>
-      <div style={{ display: 'flex', gap: 6 }}>
-        {[0, 1, 2].map((i) => (
-          <motion.div
-            key={i}
-            animate={{ opacity: [0.2, 0.8, 0.2], scaleY: [0.6, 1, 0.6] }}
-            transition={{ duration: 0.9, repeat: Infinity, delay: i * 0.15 }}
-            style={{ width: 4, height: 24, borderRadius: 2, background: 'var(--brand-primary)', transformOrigin: 'center' }}
-          />
-        ))}
-      </div>
-    </div>
-  )
-}
-
 type LeftTab = 'question' | 'schema' | 'history'
 
 export default function Attempt() {
@@ -98,6 +77,7 @@ export default function Attempt() {
   const handleFormat = () => {
     if (!sql.trim()) return
     setSql(formatSql(sql))
+    toast.info('SQL query formatted')
   }
 
   const handleInsertSnippet = (snippet: string) => {
@@ -115,7 +95,7 @@ export default function Attempt() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [sql])
 
-  if (assignmentLoading) return <LoadingScreen />
+  if (assignmentLoading) return <AttemptSkeleton />
 
   if (!assignment) {
     return (

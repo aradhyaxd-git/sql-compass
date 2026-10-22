@@ -18,6 +18,9 @@ import {
 } from 'lucide-react'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
+import UserAvatar from '@/components/ui/UserAvatar'
+import { ProfileSkeleton } from '@/components/ui/Skeleton'
+import { toast } from 'sonner'
 import { useUserStats, useAttemptHistory } from '@/hooks/useProfile'
 
 const RANKS = [
@@ -100,6 +103,7 @@ export default function Profile() {
 
   const handleSignOut = async () => {
     await signOut()
+    toast.success('Signed out successfully')
     navigate('/')
   }
 
@@ -112,6 +116,7 @@ export default function Profile() {
       setIsSettingUp2FA(true)
     } catch (err: any) {
       setTwoFactorMessage({ type: 'error', text: err.message || 'Failed to start 2FA setup' })
+      toast.error(err.message || 'Failed to start 2FA setup')
     } finally {
       setIs2FASubmitting(false)
     }
@@ -125,11 +130,14 @@ export default function Profile() {
     try {
       await confirm2FA(setupCode)
       setTwoFactorMessage({ type: 'success', text: 'Two-factor authentication enabled successfully!' })
+      toast.success('Two-factor authentication enabled successfully')
       setIsSettingUp2FA(false)
       setSetupData(null)
       setSetupCode('')
     } catch (err: any) {
-      setTwoFactorMessage({ type: 'error', text: err.response?.data?.message || err.message || 'Invalid 2FA code' })
+      const msg = err.response?.data?.message || err.message || 'Invalid 2FA code'
+      setTwoFactorMessage({ type: 'error', text: msg })
+      toast.error(msg)
     } finally {
       setIs2FASubmitting(false)
     }
@@ -139,25 +147,18 @@ export default function Profile() {
     if (setupData?.secret) {
       navigator.clipboard.writeText(setupData.secret)
       setCopiedSecret(true)
+      toast.success('2FA secret copied to clipboard')
       setTimeout(() => setCopiedSecret(false), 2000)
     }
   }
 
   if (!isLoaded || statsLoading) {
     return (
-      <div
-        style={{
-          minHeight: '100vh',
-          background: 'var(--bg-canvas)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-muted)' }}>
-          Loading profile...
-        </div>
-      </div>
+      <>
+        <Navbar />
+        <ProfileSkeleton />
+        <Footer />
+      </>
     )
   }
 
@@ -199,32 +200,12 @@ export default function Profile() {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
-              {user?.imageUrl ? (
-                <img
-                  src={user.imageUrl}
-                  alt="avatar"
-                  style={{ width: 56, height: 56, borderRadius: 12, border: '2px solid var(--brand-border)' }}
-                />
-              ) : (
-                <div
-                  style={{
-                    width: 56,
-                    height: 56,
-                    borderRadius: 12,
-                    background: 'var(--brand-muted)',
-                    border: '2px solid var(--brand-border)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontFamily: 'var(--font-display)',
-                    fontWeight: 700,
-                    fontSize: 22,
-                    color: 'var(--brand-primary)',
-                  }}
-                >
-                  {user?.firstName?.[0] ?? '?'}
-                </div>
-              )}
+              <UserAvatar
+                imageUrl={user?.imageUrl}
+                name={user?.fullName || user?.firstName}
+                size={56}
+                shape="rounded"
+              />
 
               <div>
                 <h1

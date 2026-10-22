@@ -7,6 +7,7 @@ import { useAssignments } from '@/hooks/useAssignments'
 import { useUserStats, useAttemptHistory } from '@/hooks/useProfile'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
+import { ChallengeCardSkeleton } from '@/components/ui/Skeleton'
 import type { Difficulty, Assignment } from '@/types/assignment.types'
 
 type Filter = 'all' | Difficulty
@@ -516,16 +517,7 @@ export default function Dashboard() {
               gap: 20,
             }}>
               {[0, 1, 2, 3, 4, 5].map((i) => (
-                <div
-                  key={i}
-                  style={{
-                    height: 180,
-                    borderRadius: 10,
-                    background: 'var(--bg-card)',
-                    border: '1px solid var(--border-default)',
-                    padding: 20,
-                  }}
-                />
+                <ChallengeCardSkeleton key={i} />
               ))}
             </div>
           )}

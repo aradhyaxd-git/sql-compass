@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Navigate, useNavigate, useSearchParams, Link } from 'react-router-dom'
+import { toast } from 'sonner'
 import { useAuth } from '@/context/AuthContext'
 import {
   Compass,
@@ -260,8 +261,10 @@ export default function Auth() {
     try {
       if (mfaState.isSetup) {
         await confirm2FASetupWithChallenge(mfaState.challengeToken, totpCode)
+        toast.success('Two-factor authentication enabled successfully')
       } else {
         await verify2FALogin(mfaState.challengeToken, totpCode)
+        toast.success('Signed in successfully')
       }
       navigate('/dashboard', { replace: true })
     } catch (err: any) {
@@ -320,6 +323,7 @@ export default function Auth() {
 
     try {
       await completePasswordReset(resetChallengeToken, resetTotpCode, resetNewPassword)
+      toast.success('Password updated successfully')
       navigate('/dashboard', { replace: true })
     } catch (err: any) {
       const msg = err.response?.data?.message || err.message || 'Failed to reset password'

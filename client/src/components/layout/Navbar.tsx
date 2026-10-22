@@ -5,6 +5,7 @@ import { Sun, Moon, Command, LogOut } from 'lucide-react'
 import { useTheme } from '@/context/ThemeContext'
 import { useAuth } from '@/context/AuthContext'
 import ShortcutsModal from '@/components/ui/ShortcutsModal'
+import UserAvatar from '@/components/ui/UserAvatar'
 
 function SandboxStatusDot() {
   return (
@@ -209,32 +210,12 @@ function UserMenu() {
           padding: 2,
         }}
       >
-        {user.imageUrl ? (
-          <img
-            src={user.imageUrl}
-            alt={user.fullName}
-            style={{ width: 30, height: 30, borderRadius: '50%', border: '1.5px solid var(--border-default)' }}
-          />
-        ) : (
-          <div
-            style={{
-              width: 30,
-              height: 30,
-              borderRadius: '50%',
-              background: 'var(--brand-muted)',
-              border: '1.5px solid var(--brand-border)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontFamily: 'var(--font-display)',
-              fontWeight: 700,
-              fontSize: 13,
-              color: 'var(--brand-primary)',
-            }}
-          >
-            {user.firstName?.[0] || 'U'}
-          </div>
-        )}
+        <UserAvatar
+          imageUrl={user.imageUrl}
+          name={user.fullName || user.firstName}
+          size={30}
+          shape="circle"
+        />
       </button>
 
       {isOpen && (
