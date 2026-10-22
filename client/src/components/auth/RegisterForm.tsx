@@ -7,6 +7,7 @@ import { AuthContextOutletType } from './AuthLayout'
 import Input from '@/components/ui/Input'
 import Alert from '@/components/ui/Alert'
 import Card from '@/components/ui/Card'
+import PasswordStrengthMeter from '@/components/ui/PasswordStrengthMeter'
 
 export const RegisterForm: React.FC = () => {
   const { signUp, signInWithGoogle } = useAuth()
@@ -191,6 +192,8 @@ export const RegisterForm: React.FC = () => {
           leftIcon={<Lock size={16} />}
           disabled={isSubmitting}
         />
+
+        <PasswordStrengthMeter password={password} />
 
         <button
           type="submit"

@@ -6,6 +6,7 @@ import { useAuth } from '@/context/AuthContext'
 import Input from '@/components/ui/Input'
 import Alert from '@/components/ui/Alert'
 import Card from '@/components/ui/Card'
+import PasswordStrengthMeter from '@/components/ui/PasswordStrengthMeter'
 
 export const PasswordResetForm: React.FC = () => {
   const { requestPasswordReset, completePasswordReset } = useAuth()
@@ -191,6 +192,8 @@ export const PasswordResetForm: React.FC = () => {
             leftIcon={<Lock size={16} />}
             disabled={isSubmitting}
           />
+
+          <PasswordStrengthMeter password={newPassword} />
 
           <Input
             label="Confirm New Password"
