@@ -12,13 +12,16 @@ interface UserStats {
   }
 }
 
-interface Attempt {
+export interface Attempt {
   _id: string
   assignmentId: string
   assignmentTitle: string
   query: string
   status: 'success' | 'error'
+  correct?: boolean
+  verdictReason?: string
   rowCount: number
+  xpEarned?: number
   executedAt: string
 }
 
@@ -39,5 +42,18 @@ export function useAttemptHistory() {
       const { data } = await api.get<{ success: boolean; data: Attempt[] }>('/api/profile/attempts')
       return data.data
     },
+  })
+}
+
+export function useAssignmentAttempts(assignmentId: string) {
+  return useQuery({
+    queryKey: ['assignmentAttempts', assignmentId],
+    queryFn: async () => {
+      const { data } = await api.get<{ success: boolean; data: Attempt[] }>('/api/profile/attempts', {
+        params: { assignmentId, limit: 15 },
+      })
+      return data.data
+    },
+    enabled: !!assignmentId,
   })
 }

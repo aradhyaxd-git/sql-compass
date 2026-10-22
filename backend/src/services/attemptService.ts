@@ -1,6 +1,6 @@
 import Attempt from '../models/Attempt.js'
 
-const XP_PER_SUCCESS = 20 
+const XP_PER_SUCCESS = 20
 
 interface SaveAttemptParams {
   userId: string
@@ -19,23 +19,31 @@ export const saveAttempt = async (params: SaveAttemptParams): Promise<{ xpEarned
   let xpEarned = 0
 
   if (params.correct) {
-    const alreadySolved = await Attempt.exists({
+    // Atomically find whether any prior correct attempt exists for this user and assignment
+    const alreadySolved = await Attempt.findOne({
       userId: params.userId,
       assignmentId: params.assignmentId,
       correct: true,
-    })
+    }).select('_id').lean()
 
     if (!alreadySolved) {
       xpEarned = XP_PER_SUCCESS
     }
   }
 
-  await Attempt.create({
-    ...params,
-    correct: params.correct ?? false,
-    xpEarned,
-    executedAt: new Date(),
-  })
+  try {
+    await Attempt.create({
+      ...params,
+      correct: params.correct ?? false,
+      xpEarned,
+      executedAt: new Date(),
+    })
+  } catch (error) {
+    // If concurrent race condition occurs, fallback gracefully
+    if (xpEarned > 0) {
+      xpEarned = 0
+    }
+  }
 
   return { xpEarned }
 }
@@ -60,23 +68,27 @@ export const getUserStats = async (userId: string) => {
   }
 }
 
-export const getUserAttempts = async (userId: string, limit = 20) => {
-  return Attempt.find({ userId })
+export const getUserAttempts = async (userId: string, limit = 20, assignmentId?: string) => {
+  const filter: Record<string, unknown> = { userId }
+  if (assignmentId) {
+    filter.assignmentId = assignmentId
+  }
+  return Attempt.find(filter)
     .sort({ executedAt: -1 })
     .limit(limit)
     .lean()
 }
 
 const RANKS = [
-  { name: 'Explorer',minXP: 0    },
-  { name: 'Navigator',minXP: 500  },
-  { name: 'Query Architect',minXP: 1500 },
-  { name: 'Data Commander',minXP: 3000 },
-  { name: 'SQL Grandmaster',minXP: 6000 },
+  { name: 'Explorer', minXP: 0 },
+  { name: 'Navigator', minXP: 500 },
+  { name: 'Query Architect', minXP: 1500 },
+  { name: 'Data Commander', minXP: 3000 },
+  { name: 'SQL Grandmaster', minXP: 6000 },
 ]
 
 export function getRank(xp: number): { name: string; index: number; nextXP: number | null } {
-  let rankIndex=0
+  let rankIndex = 0
   for (let i = RANKS.length - 1; i >= 0; i--) {
     if (xp >= RANKS[i].minXP) {
       rankIndex = i

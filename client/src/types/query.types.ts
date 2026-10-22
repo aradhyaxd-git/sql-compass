@@ -20,13 +20,25 @@ export interface JudgeVerdict {
   diff?: VerdictDiff
 }
 
+export interface ExecutionPlanSummary {
+  totalCost: number
+  startupCost: number
+  planRows: number
+  planWidth: number
+  nodeTypes: string[]
+  hasSeqScan: boolean
+  hasIndexScan: boolean
+}
+
 export interface QueryResult {
   columns: string[]
   rows: Record<string, unknown>[]
+  rawTuples?: unknown[][]
   rowCount: number
   duration: number
   verdict?: JudgeVerdict
   xpEarned?: number
+  executionPlan?: ExecutionPlanSummary
 }
 
 export interface QueryError {
