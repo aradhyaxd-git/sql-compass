@@ -1,52 +1,40 @@
-import axios from "axios"
+import axios from 'axios'
+
+const TOKEN_KEY = 'sqlcompass_token'
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "",
+  baseURL: import.meta.env.VITE_API_BASE_URL || '',
   withCredentials: true,
-  headers: { "Content-Type": "application/json" },
+  headers: { 'Content-Type': 'application/json' },
 })
 
-// Token holder - will be set by App.tsx when Clerk auth is ready
 let currentToken: string | null = null
-let getTokenFn: (() => Promise<string | null>) | null = null
 
 export function setAuthToken(token: string | null) {
   currentToken = token
 }
 
-export function setGetTokenFn(fn: (() => Promise<string | null>) | null) {
-  getTokenFn = fn
-}
-
-// Request interceptor to attach Clerk token on every request
 api.interceptors.request.use(async (config) => {
-  try {
-    let token = null
-    if (getTokenFn) {
-      try {
-        token = await getTokenFn()
-        if (token) {
-          config.headers = config.headers ?? {}
-          config.headers.Authorization = `Bearer ${token}`
-          return config
-        }
-      } catch (err) {
-        // token fetch failed, try fallback
-      }
-    }
-    
-    // Fall back to stored token if fresh fetch fails
-    if (!token && currentToken) {
-      token = currentToken
-      config.headers = config.headers ?? {}
-      config.headers.Authorization = `Bearer ${token}`
-      return config
-    }
-  } catch (err) {
-    // silently handle interceptor errors
+  const token = currentToken || localStorage.getItem(TOKEN_KEY)
+  if (token) {
+    config.headers = config.headers ?? {}
+    config.headers.Authorization = `Bearer ${token}`
   }
-
   return config
 })
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/auth')) {
+        // If an authenticated request fails with 401, clear invalid token
+        localStorage.removeItem(TOKEN_KEY)
+        currentToken = null
+      }
+    }
+    return Promise.reject(error)
+  }
+)
 
 export default api

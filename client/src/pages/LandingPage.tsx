@@ -6,10 +6,17 @@ import {
   useMotionValue,
   useSpring,
 } from "framer-motion";
-import { Show } from "@clerk/react";
+import { useAuth } from "@/context/AuthContext";
 import { Sun, Moon } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import Footer from "@/components/layout/Footer";
+
+function Show({ when, children }: { when: 'signed-in' | 'signed-out'; children: React.ReactNode }) {
+  const { isSignedIn } = useAuth();
+  if (when === 'signed-in' && isSignedIn) return <>{children}</>;
+  if (when === 'signed-out' && !isSignedIn) return <>{children}</>;
+  return null;
+}
 
 const C = {
   void: "var(--bg-canvas)",

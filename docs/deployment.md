@@ -12,8 +12,8 @@ This guide details the step-by-step procedures for deploying SQL Compass to prod
 | Backend (`backend/`) | Render | Node.js 22 LTS Web Service (Starter/Free) | `render.yaml` or Render Dashboard |
 | Practice SQL Sandbox | Neon / PostgreSQL | Serverless PostgreSQL 16 | Connection pooling, read-only role |
 | Persistence Store | MongoDB Atlas | M0 Free Tier / Dedicated | Replica Set with TLS connection string |
-| Authentication | Clerk | Production Instance | JWT Templates, Authorized Parties |
-| AI Pedagogy | Google AI Studio | Gemini 2.0 Flash | API Key |
+| Authentication | Google OAuth 2.0 & Admin | Custom JWT Sessions | Google Client ID/Secret, JWT_SECRET |
+| AI Pedagogy | Groq / Gemini | LLM API | API Key |
 
 ---
 
@@ -22,12 +22,16 @@ This guide details the step-by-step procedures for deploying SQL Compass to prod
 1. **Database Provisioning**:
    - MongoDB Atlas cluster created with a dedicated user and network IP access (`0.0.0.0/0` for cloud deployment).
    - Neon PostgreSQL project created with database `sqlcompass_sandbox`.
-2. **Authentication Configuration**:
-   - Clerk project configured with both Development and Production instances.
-   - Authorized redirect URLs configured for your Vercel domain.
-3. **API Keys Ready**:
-   - Google Gemini API key generated via Google AI Studio.
-   - Clerk publishable key (`pk_...`) and secret key (`sk_...`).
+2. **Authentication Configuration (Google Cloud Console)**:
+   - Create an OAuth 2.0 Web Application in Google Cloud Console.
+   - Add Authorized redirect URIs:
+     - `http://localhost:5173/auth` (Local development)
+     - `https://<your-vercel-domain>.vercel.app/auth` (Production)
+   - Save your `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
+3. **Admin Credentials & Keys**:
+   - `JWT_SECRET`: Random 32+ character string.
+   - `ADMIN_EMAIL` & `ADMIN_PASSWORD`: Your private admin login credentials.
+   - `GROQ_API_KEY`: Groq API key (or `GEMINI_API_KEY`).
 
 ---
 

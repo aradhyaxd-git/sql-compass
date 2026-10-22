@@ -13,9 +13,15 @@ services:
         value: 10000
       - key: CLIENT_ORIGIN
         sync: false
-      - key: CLERK_SECRET_KEY
+      - key: GOOGLE_CLIENT_ID
         sync: false
-      - key: CLERK_PUBLISHABLE_KEY
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
         sync: false
       - key: MONGO_URI
         sync: false
@@ -23,7 +29,9 @@ services:
         sync: false
       - key: SANDBOX_RO_URL
         sync: false
-      - key: GEMINI_API_KEY
+      - key: LLM_PROVIDER
+        value: "groq"
+      - key: GROQ_API_KEY
         sync: false
       - key: HINT_GRAPH
         value: "true"

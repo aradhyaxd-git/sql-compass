@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useAuth } from '@clerk/react'
+import { useAuth } from '@/context/AuthContext'
 import hintService from '@/services/hint.service'
 import type { HintData } from '@/types/query.types'
 

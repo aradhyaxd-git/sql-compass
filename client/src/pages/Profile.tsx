@@ -1,4 +1,4 @@
-import { useUser, useClerk } from '@clerk/react'
+import { useAuth } from '@/context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Compass, Award, LogOut, CheckCircle2, AlertCircle, Terminal } from 'lucide-react'
@@ -63,8 +63,7 @@ function StatCard({ label, value, icon: Icon }: { label: string; value: string; 
 }
 
 export default function Profile() {
-  const { user, isLoaded } = useUser()
-  const { signOut } = useClerk()
+  const { user, isLoaded, signOut } = useAuth()
   const navigate = useNavigate()
   const { data: stats, isLoading: statsLoading } = useUserStats()
   const { data: attempts } = useAttemptHistory()

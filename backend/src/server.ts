@@ -8,6 +8,7 @@ import executionRoutes from './routes/executionRouter.js'
 import hintRoutes from './routes/hintRouter.js'
 import profileRoutes from './routes/profileRouter.js'
 import adminRoutes from './routes/adminRouter.js'
+import authRoutes from './routes/authRouter.js'
 import mongoose from 'mongoose'
 import { globalLimiter } from './middleware/rateLimiter.js'
 import { logger, distributedTracingMiddleware } from './utils/logger.js'
@@ -108,6 +109,7 @@ app.get('/health/deep', async (_, res) => {
   })
 })
 
+app.use('/api/auth', authRoutes)
 app.use('/api/assignments', assignmentRoutes)
 app.use('/api/query', executionRoutes)
 app.use('/api/hints', hintRoutes)

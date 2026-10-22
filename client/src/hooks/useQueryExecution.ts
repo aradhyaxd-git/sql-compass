@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { useAuth } from '@clerk/react'
+import { useAuth } from '@/context/AuthContext'
 import queryService from '@/services/query.service'
 import type { QueryState } from '@/types/query.types'
 

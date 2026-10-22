@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { useUser } from '@clerk/react'
+import { useUser } from '@/context/AuthContext'
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { Search, Sparkles, CheckCircle2, ChevronRight, Award } from 'lucide-react'

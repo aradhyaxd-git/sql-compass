@@ -7,17 +7,20 @@ export const requireAdmin = (req: Request, res: Response, next: NextFunction): v
     return
   }
 
+  if (req.userRole === 'admin') {
+    next()
+    return
+  }
+
   const adminIds = (process.env.ADMIN_USER_IDS || '')
     .split(',')
     .map((id) => id.trim())
     .filter(Boolean)
 
-  // Fail-closed: If no admin IDs are configured in the environment,
-  // access MUST be denied regardless of NODE_ENV.
-  if (adminIds.length === 0 || !adminIds.includes(userId)) {
-    res.status(403).json({ success: false, message: 'Forbidden: Admin access required' })
+  if (adminIds.length > 0 && adminIds.includes(userId)) {
+    next()
     return
   }
 
-  next()
+  res.status(403).json({ success: false, message: 'Forbidden: Admin access required' })
 }

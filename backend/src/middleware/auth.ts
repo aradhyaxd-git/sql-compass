@@ -1,10 +1,6 @@
-import { createClerkClient, verifyToken } from '@clerk/backend'
 import type { Request, Response, NextFunction } from 'express'
+import { verifySessionToken } from '../services/authService.js'
 import { updateTraceUser } from '../utils/logger.js'
-
-const clerk = createClerkClient({
-  secretKey: process.env.CLERK_SECRET_KEY,
-})
 
 function extractAuthToken(req: Request): string | null {
   const authHeader = req.headers.authorization
@@ -16,7 +12,7 @@ function extractAuthToken(req: Request): string | null {
   const rawCookie = req.headers.cookie
   if (!rawCookie) return null
 
-  const match = rawCookie.match(/(?:^|;\s*)__session=([^;]+)/)
+  const match = rawCookie.match(/(?:^|;\s*)(?:token|__session)=([^;]+)/)
   if (!match) return null
 
   try {
@@ -39,15 +35,14 @@ export const requireAuth = async (
   }
 
   try {
-    const payload = await verifyToken(token, {
-      secretKey: process.env.CLERK_SECRET_KEY,
-      ...(process.env.CLIENT_ORIGIN ? { authorizedParties: [process.env.CLIENT_ORIGIN] } : {}),
-    })
+    const payload = verifySessionToken(token)
     req.userId = payload.sub
+    req.userRole = payload.role
+    req.userEmail = payload.email
     updateTraceUser(payload.sub)
     next()
   } catch {
-    res.status(401).json({ success: false, message: 'Invalid or expired token' })
+    res.status(401).json({ success: false, message: 'Invalid or expired session token' })
   }
 }
 
@@ -65,11 +60,10 @@ export const optionalAuth = async (
   }
 
   try {
-    const payload = await verifyToken(token, {
-      secretKey: process.env.CLERK_SECRET_KEY,
-      ...(process.env.CLIENT_ORIGIN ? { authorizedParties: [process.env.CLIENT_ORIGIN] } : {}),
-    })
+    const payload = verifySessionToken(token)
     req.userId = payload.sub
+    req.userRole = payload.role
+    req.userEmail = payload.email
     updateTraceUser(payload.sub)
     next()
   } catch {

@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
-import { Link, useLocation } from 'react-router-dom'
-import { UserButton } from '@clerk/react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Sun, Moon, Command } from 'lucide-react'
+import { Sun, Moon, Command, LogOut } from 'lucide-react'
 import { useTheme } from '@/context/ThemeContext'
+import { useAuth } from '@/context/AuthContext'
 import ShortcutsModal from '@/components/ui/ShortcutsModal'
 
 function SandboxStatusDot() {
@@ -176,7 +176,7 @@ export default function Navbar() {
           {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
         </button>
 
-        <UserButton />
+        <UserMenu />
       </div>
 
       <ShortcutsModal
@@ -184,5 +184,151 @@ export default function Navbar() {
         onClose={() => setShowShortcuts(false)}
       />
     </nav>
+  )
+}
+
+function UserMenu() {
+  const { user, signOut } = useAuth()
+  const [isOpen, setIsOpen] = useState(false)
+  const navigate = useNavigate()
+
+  if (!user) return null
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <button
+        onClick={() => setIsOpen((prev) => !prev)}
+        aria-label="User menu"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          background: 'transparent',
+          border: 'none',
+          cursor: 'pointer',
+          padding: 2,
+        }}
+      >
+        {user.imageUrl ? (
+          <img
+            src={user.imageUrl}
+            alt={user.fullName}
+            style={{ width: 30, height: 30, borderRadius: '50%', border: '1.5px solid var(--border-default)' }}
+          />
+        ) : (
+          <div
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: '50%',
+              background: 'var(--brand-muted)',
+              border: '1.5px solid var(--brand-border)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontFamily: 'var(--font-display)',
+              fontWeight: 700,
+              fontSize: 13,
+              color: 'var(--brand-primary)',
+            }}
+          >
+            {user.firstName?.[0] || 'U'}
+          </div>
+        )}
+      </button>
+
+      {isOpen && (
+        <>
+          <div
+            onClick={() => setIsOpen(false)}
+            style={{ position: 'fixed', inset: 0, zIndex: 90 }}
+          />
+          <div
+            style={{
+              position: 'absolute',
+              right: 0,
+              top: 'calc(100% + 8px)',
+              width: 220,
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border-default)',
+              borderRadius: 10,
+              padding: '12px 14px',
+              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.35)',
+              zIndex: 100,
+            }}
+          >
+            <div style={{ marginBottom: 10, borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
+              <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13, color: 'var(--text-primary)' }}>
+                {user.fullName}
+              </div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {user.email}
+              </div>
+              {user.role === 'admin' && (
+                <span
+                  style={{
+                    display: 'inline-block',
+                    marginTop: 6,
+                    padding: '2px 6px',
+                    borderRadius: 4,
+                    background: 'var(--status-warning-bg)',
+                    border: '1px solid rgba(245, 158, 11, 0.3)',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 10,
+                    fontWeight: 700,
+                    color: 'var(--status-warning)',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Admin
+                </span>
+              )}
+            </div>
+
+            <Link
+              to="/profile"
+              onClick={() => setIsOpen(false)}
+              style={{
+                display: 'block',
+                padding: '6px 0',
+                fontFamily: 'var(--font-sans)',
+                fontSize: 13,
+                color: 'var(--text-secondary)',
+                textDecoration: 'none',
+              }}
+            >
+              Profile & Activity
+            </Link>
+
+            <button
+              onClick={async () => {
+                setIsOpen(false)
+                await signOut()
+                navigate('/')
+              }}
+              style={{
+                width: '100%',
+                textAlign: 'left',
+                marginTop: 6,
+                padding: '6px 0',
+                background: 'transparent',
+                border: 'none',
+                borderTop: '1px solid var(--border-subtle)',
+                fontFamily: 'var(--font-sans)',
+                fontSize: 13,
+                color: 'var(--status-danger)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <LogOut size={13} />
+              <span>Sign Out</span>
+            </button>
+          </div>
+        </>
+      )}
+    </div>
   )
 }
