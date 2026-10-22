@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Play, FileText, Database, RotateCcw, History, Wand2, CheckCircle2, XCircle, AlertCircle, ArrowUpRight } from 'lucide-react'
@@ -84,7 +84,7 @@ export default function Attempt() {
   const { id } = useParams<{ id: string }>()
   const { data: assignment, isLoading: assignmentLoading } = useAssignment(id!)
   const { data: schema, isLoading: schemaLoading } = useAssignmentSchema(id!)
-  const { queryState, execute, reset, isLoading: queryLoading } = useQueryExecution(id!)
+  const { queryState, execute, cancelQuery, reset, isLoading: queryLoading } = useQueryExecution(id!)
   const { hintData, hint, isLoading: hintLoading, requestHint, clearHint } = useHint(id!)
   const { data: attempts, refetch: refetchAttempts } = useAssignmentAttempts(id!)
   const [sql, setSql] = useState('')
@@ -103,6 +103,17 @@ export default function Attempt() {
   const handleInsertSnippet = (snippet: string) => {
     setSql((prev) => (prev ? `${prev.trim()} ${snippet}` : snippet))
   }
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'f' || e.key === 'F')) {
+        e.preventDefault()
+        handleFormat()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [sql])
 
   if (assignmentLoading) return <LoadingScreen />
 
@@ -263,54 +274,48 @@ export default function Attempt() {
 
             <motion.button
               onClick={async () => {
+                if (queryLoading) {
+                  cancelQuery()
+                  return
+                }
                 await execute(sql)
                 setTimeout(() => refetchAttempts(), 700)
               }}
-              disabled={queryLoading}
               whileTap={{ scale: 0.98 }}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 7,
                 padding: '6px 16px',
-                background: queryLoading ? 'var(--bg-subtle)' : 'var(--brand-primary)',
-                border: '1px solid var(--brand-border)',
+                background: queryLoading ? 'var(--status-danger-bg)' : 'var(--brand-primary)',
+                border: queryLoading ? '1px solid rgba(244, 63, 94, 0.3)' : '1px solid var(--brand-border)',
                 borderRadius: 6,
                 fontFamily: 'var(--font-sans)',
                 fontSize: 12,
                 fontWeight: 600,
-                color: queryLoading ? 'var(--text-muted)' : '#ffffff',
-                cursor: queryLoading ? 'not-allowed' : 'pointer',
+                color: queryLoading ? 'var(--status-danger)' : '#ffffff',
+                cursor: 'pointer',
                 transition: 'all 0.15s ease',
                 boxShadow: queryLoading ? 'none' : 'var(--shadow-sm)',
               }}
             >
               {queryLoading ? (
-                <div style={{ display: 'flex', gap: 3 }}>
-                  {[0, 1, 2].map((i) => (
-                    <motion.div
-                      key={i}
-                      animate={{ opacity: [0.3, 1, 0.3] }}
-                      transition={{ duration: 0.7, repeat: Infinity, delay: i * 0.12 }}
-                      style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--text-muted)' }}
-                    />
-                  ))}
-                </div>
+                <span>Cancel</span>
               ) : (
-                <Play size={12} fill="currentColor" />
-              )}
-              <span>{queryLoading ? 'Executing...' : 'Run Query'}</span>
-              {!queryLoading && (
-                <kbd style={{
-                  fontSize: 10,
-                  opacity: 0.8,
-                  background: 'rgba(255, 255, 255, 0.2)',
-                  padding: '1px 5px',
-                  borderRadius: 3,
-                  fontFamily: 'var(--font-mono)',
-                }}>
-                  Cmd+Enter
-                </kbd>
+                <>
+                  <Play size={12} fill="currentColor" />
+                  <span>Run Query</span>
+                  <kbd style={{
+                    fontSize: 10,
+                    opacity: 0.8,
+                    background: 'rgba(255, 255, 255, 0.2)',
+                    padding: '1px 5px',
+                    borderRadius: 3,
+                    fontFamily: 'var(--font-mono)',
+                  }}>
+                    Cmd+Enter
+                  </kbd>
+                </>
               )}
             </motion.button>
           </div>
