@@ -4,12 +4,13 @@ import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { Search, Sparkles, CheckCircle2, ChevronRight, Award } from 'lucide-react'
 import { useAssignments } from '@/hooks/useAssignments'
-import { useUserStats } from '@/hooks/useProfile'
+import { useUserStats, useAttemptHistory } from '@/hooks/useProfile'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import type { Difficulty, Assignment } from '@/types/assignment.types'
 
 type Filter = 'all' | Difficulty
+type StatusFilter = 'all' | 'solved' | 'unsolved'
 
 const DIFFICULTY_META: Record<Difficulty, { label: string; color: string; bg: string; border: string }> = {
   easy: {
@@ -32,7 +33,7 @@ const DIFFICULTY_META: Record<Difficulty, { label: string; color: string; bg: st
   },
 }
 
-function ChallengeCard({ assignment, index }: { assignment: Assignment; index: number }) {
+function ChallengeCard({ assignment, index, isSolved }: { assignment: Assignment; index: number; isSolved: boolean }) {
   const meta = DIFFICULTY_META[assignment.difficulty]
 
   return (
@@ -46,7 +47,7 @@ function ChallengeCard({ assignment, index }: { assignment: Assignment; index: n
           style={{
             padding: '20px 22px',
             background: 'var(--bg-card)',
-            border: '1px solid var(--border-default)',
+            border: isSolved ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid var(--border-default)',
             borderRadius: 10,
             cursor: 'pointer',
             transition: 'border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease',
@@ -62,26 +63,48 @@ function ChallengeCard({ assignment, index }: { assignment: Assignment; index: n
             e.currentTarget.style.boxShadow = 'var(--shadow-md)'
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = 'var(--border-default)'
+            e.currentTarget.style.borderColor = isSolved ? 'rgba(16, 185, 129, 0.3)' : 'var(--border-default)'
             e.currentTarget.style.transform = 'translateY(0)'
             e.currentTarget.style.boxShadow = 'none'
           }}
         >
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <span style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: 11,
-                fontWeight: 600,
-                color: meta.color,
-                background: meta.bg,
-                border: `1px solid ${meta.border}`,
-                padding: '2px 8px',
-                borderRadius: 4,
-                letterSpacing: '0.04em',
-              }}>
-                {meta.label}
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: meta.color,
+                  background: meta.bg,
+                  border: `1px solid ${meta.border}`,
+                  padding: '2px 8px',
+                  borderRadius: 4,
+                  letterSpacing: '0.04em',
+                }}>
+                  {meta.label}
+                </span>
+
+                {isSolved && (
+                  <span style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 10,
+                    fontWeight: 600,
+                    color: 'var(--status-online)',
+                    background: 'var(--status-online-bg)',
+                    border: '1px solid rgba(16, 185, 129, 0.25)',
+                    padding: '2px 6px',
+                    borderRadius: 4,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 3,
+                  }}>
+                    <CheckCircle2 size={11} />
+                    <span>Solved</span>
+                  </span>
+                )}
+              </div>
+
               <span style={{
                 fontFamily: 'var(--font-mono)',
                 fontSize: 11,
@@ -160,9 +183,33 @@ function ChallengeCard({ assignment, index }: { assignment: Assignment; index: n
 export default function Dashboard() {
   const { user } = useUser()
   const [filter, setFilter] = useState<Filter>('all')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [selectedTopic, setSelectedTopic] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const { data: assignments, isLoading, error } = useAssignments()
   const { data: stats } = useUserStats()
+  const { data: attemptHistory } = useAttemptHistory()
+
+  const solvedIds = useMemo(() => {
+    const ids = new Set<string>()
+    if (attemptHistory) {
+      for (const a of attemptHistory) {
+        if (a.correct) ids.add(a.assignmentId)
+      }
+    }
+    return ids
+  }, [attemptHistory])
+
+  const allTopics = useMemo(() => {
+    if (!assignments) return []
+    const tagSet = new Set<string>()
+    for (const a of assignments) {
+      if (a.tags) {
+        for (const t of a.tags) tagSet.add(t)
+      }
+    }
+    return Array.from(tagSet).sort()
+  }, [assignments])
 
   const FILTERS: { key: Filter; label: string }[] = [
     { key: 'all', label: 'All Challenges' },
@@ -175,14 +222,22 @@ export default function Dashboard() {
     if (!assignments) return []
     return assignments.filter((a) => {
       const matchesDifficulty = filter === 'all' || a.difficulty === filter
+      const matchesTopic = selectedTopic === 'all' || (a.tags && a.tags.includes(selectedTopic))
+      const isSolved = solvedIds.has(a._id)
+      const matchesStatus =
+        statusFilter === 'all' ||
+        (statusFilter === 'solved' && isSolved) ||
+        (statusFilter === 'unsolved' && !isSolved)
+
       const matchesSearch =
         searchQuery.trim() === '' ||
         a.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         a.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
         a.tags?.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()))
-      return matchesDifficulty && matchesSearch
+
+      return matchesDifficulty && matchesTopic && matchesStatus && matchesSearch
     })
-  }, [assignments, filter, searchQuery])
+  }, [assignments, filter, selectedTopic, statusFilter, solvedIds, searchQuery])
 
   return (
     <>
@@ -290,61 +345,164 @@ export default function Dashboard() {
             </div>
 
             {/* Filter and Search Bar */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {FILTERS.map(({ key, label }) => {
-                  const active = filter === key
-                  return (
-                    <button
-                      key={key}
-                      onClick={() => setFilter(key)}
-                      style={{
-                        padding: '6px 14px',
-                        borderRadius: 6,
-                        fontFamily: 'var(--font-sans)',
-                        fontSize: 13,
-                        fontWeight: active ? 600 : 500,
-                        cursor: 'pointer',
-                        border: active ? '1px solid var(--brand-primary)' : '1px solid var(--border-default)',
-                        background: active ? 'var(--brand-muted)' : 'var(--bg-subtle)',
-                        color: active ? 'var(--brand-primary)' : 'var(--text-secondary)',
-                        transition: 'all 0.15s ease',
-                      }}
-                    >
-                      {label}
-                    </button>
-                  )
-                })}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                  {FILTERS.map(({ key, label }) => {
+                    const active = filter === key
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => setFilter(key)}
+                        style={{
+                          padding: '6px 14px',
+                          borderRadius: 6,
+                          fontFamily: 'var(--font-sans)',
+                          fontSize: 13,
+                          fontWeight: active ? 600 : 500,
+                          cursor: 'pointer',
+                          border: active ? '1px solid var(--brand-primary)' : '1px solid var(--border-default)',
+                          background: active ? 'var(--brand-muted)' : 'var(--bg-subtle)',
+                          color: active ? 'var(--brand-primary)' : 'var(--text-secondary)',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        {label}
+                      </button>
+                    )
+                  })}
+
+                  <div style={{
+                    display: 'flex',
+                    gap: 3,
+                    background: 'var(--bg-subtle)',
+                    border: '1px solid var(--border-default)',
+                    padding: 3,
+                    borderRadius: 6,
+                    marginLeft: 4,
+                  }}>
+                    {(['all', 'solved', 'unsolved'] as StatusFilter[]).map((st) => {
+                      const active = statusFilter === st
+                      return (
+                        <button
+                          key={st}
+                          onClick={() => setStatusFilter(st)}
+                          style={{
+                            padding: '4px 10px',
+                            borderRadius: 4,
+                            fontSize: 12,
+                            fontFamily: 'var(--font-sans)',
+                            fontWeight: active ? 600 : 500,
+                            border: 'none',
+                            cursor: 'pointer',
+                            background: active ? 'var(--bg-card)' : 'transparent',
+                            color: active ? 'var(--text-primary)' : 'var(--text-muted)',
+                            boxShadow: active ? 'var(--shadow-sm)' : 'none',
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          {st === 'all' ? 'All Status' : st === 'solved' ? 'Solved' : 'Unsolved'}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <div style={{
+                  position: 'relative',
+                  display: 'flex',
+                  alignItems: 'center',
+                  minWidth: 260,
+                }}>
+                  <Search size={14} style={{ position: 'absolute', left: 12, color: 'var(--text-muted)' }} />
+                  <input
+                    type="text"
+                    placeholder="Filter by title, topic, or tag..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '7px 14px 7px 34px',
+                      borderRadius: 6,
+                      border: '1px solid var(--border-default)',
+                      background: 'var(--bg-subtle)',
+                      color: 'var(--text-primary)',
+                      fontSize: 13,
+                      fontFamily: 'var(--font-sans)',
+                      outline: 'none',
+                      transition: 'border-color 0.15s ease',
+                    }}
+                    onFocus={(e) => (e.target.style.borderColor = 'var(--brand-primary)')}
+                    onBlur={(e) => (e.target.style.borderColor = 'var(--border-default)')}
+                  />
+                </div>
               </div>
 
-              <div style={{
-                position: 'relative',
-                display: 'flex',
-                alignItems: 'center',
-                minWidth: 260,
-              }}>
-                <Search size={14} style={{ position: 'absolute', left: 12, color: 'var(--text-muted)' }} />
-                <input
-                  type="text"
-                  placeholder="Filter by title, topic, or tag..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '7px 14px 7px 34px',
-                    borderRadius: 6,
-                    border: '1px solid var(--border-default)',
-                    background: 'var(--bg-subtle)',
-                    color: 'var(--text-primary)',
-                    fontSize: 13,
-                    fontFamily: 'var(--font-sans)',
-                    outline: 'none',
-                    transition: 'border-color 0.15s ease',
-                  }}
-                  onFocus={(e) => (e.target.style.borderColor = 'var(--brand-primary)')}
-                  onBlur={(e) => (e.target.style.borderColor = 'var(--border-default)')}
-                />
-              </div>
+              {/* Topic Filter Pills */}
+              {allTopics.length > 0 && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  overflowX: 'auto',
+                  paddingTop: 12,
+                  borderTop: '1px solid var(--border-subtle)',
+                }}>
+                  <span style={{
+                    fontSize: 11,
+                    fontFamily: 'var(--font-mono)',
+                    color: 'var(--text-muted)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                    marginRight: 4,
+                    flexShrink: 0,
+                  }}>
+                    Topics:
+                  </span>
+                  <button
+                    onClick={() => setSelectedTopic('all')}
+                    style={{
+                      padding: '3px 8px',
+                      borderRadius: 4,
+                      fontSize: 11,
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: selectedTopic === 'all' ? 600 : 500,
+                      border: selectedTopic === 'all' ? '1px solid var(--brand-primary)' : '1px solid var(--border-default)',
+                      background: selectedTopic === 'all' ? 'var(--brand-muted)' : 'var(--bg-subtle)',
+                      color: selectedTopic === 'all' ? 'var(--brand-primary)' : 'var(--text-secondary)',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    All Topics
+                  </button>
+                  {allTopics.map((topic) => {
+                    const active = selectedTopic === topic
+                    return (
+                      <button
+                        key={topic}
+                        onClick={() => setSelectedTopic(active ? 'all' : topic)}
+                        style={{
+                          padding: '3px 8px',
+                          borderRadius: 4,
+                          fontSize: 11,
+                          fontFamily: 'var(--font-mono)',
+                          fontWeight: active ? 600 : 500,
+                          border: active ? '1px solid var(--brand-primary)' : '1px solid var(--border-default)',
+                          background: active ? 'var(--brand-muted)' : 'var(--bg-subtle)',
+                          color: active ? 'var(--brand-primary)' : 'var(--text-secondary)',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        {topic}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -407,7 +565,12 @@ export default function Dashboard() {
               gap: 20,
             }}>
               {filtered.map((assignment, index) => (
-                <ChallengeCard key={assignment._id} assignment={assignment} index={index} />
+                <ChallengeCard
+                  key={assignment._id}
+                  assignment={assignment}
+                  index={index}
+                  isSolved={solvedIds.has(assignment._id)}
+                />
               ))}
             </div>
           )}

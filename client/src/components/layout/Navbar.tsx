@@ -1,8 +1,10 @@
+import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { UserButton } from '@clerk/react'
 import { motion } from 'framer-motion'
-import { Sun, Moon } from 'lucide-react'
+import { Sun, Moon, Command } from 'lucide-react'
 import { useTheme } from '@/context/ThemeContext'
+import ShortcutsModal from '@/components/ui/ShortcutsModal'
 
 function SandboxStatusDot() {
   return (
@@ -25,6 +27,27 @@ function SandboxStatusDot() {
 export default function Navbar() {
   const { pathname } = useLocation()
   const { theme, toggleTheme } = useTheme()
+  const [showShortcuts, setShowShortcuts] = useState(false)
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if typing in an input, textarea or contenteditable
+      const target = e.target as HTMLElement
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+        return
+      }
+
+      if (e.key === '?' || ((e.metaKey || e.ctrlKey) && e.key === '/')) {
+        e.preventDefault()
+        setShowShortcuts((prev) => !prev)
+      } else if (e.key === 'Escape') {
+        setShowShortcuts(false)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   const navLinks = [
     { to: '/dashboard', label: 'Challenges' },
@@ -91,10 +114,39 @@ export default function Navbar() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <div className="hidden sm:flex">
           <SandboxStatusDot />
         </div>
+
+        <button
+          onClick={() => setShowShortcuts(true)}
+          title="Keyboard shortcuts (?)"
+          aria-label="Keyboard shortcuts"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 32,
+            height: 32,
+            borderRadius: 6,
+            background: 'var(--bg-subtle)',
+            border: '1px solid var(--border-default)',
+            color: 'var(--text-secondary)',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = 'var(--text-primary)'
+            e.currentTarget.style.borderColor = 'var(--brand-primary)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = 'var(--text-secondary)'
+            e.currentTarget.style.borderColor = 'var(--border-default)'
+          }}
+        >
+          <Command size={14} />
+        </button>
 
         <button
           onClick={toggleTheme}
@@ -126,6 +178,11 @@ export default function Navbar() {
 
         <UserButton />
       </div>
+
+      <ShortcutsModal
+        isOpen={showShortcuts}
+        onClose={() => setShowShortcuts(false)}
+      />
     </nav>
   )
 }
