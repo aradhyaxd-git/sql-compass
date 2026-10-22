@@ -101,7 +101,7 @@ export const PasswordResetForm: React.FC = () => {
         </h1>
         <p style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>
           {step === 'request'
-            ? 'Enter your username to begin 2FA-secured recovery.'
+            ? 'Enter your username or email address to begin 2FA-secured recovery.'
             : step === 'verify'
               ? 'Enter your 6-digit authenticator code and choose a new password.'
               : 'Your password has been securely updated.'}
@@ -117,13 +117,13 @@ export const PasswordResetForm: React.FC = () => {
       {step === 'request' && (
         <form onSubmit={handleRequestSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <Input
-            label="Username"
+            label="Username or Email"
             type="text"
             autoFocus
             autoComplete="username"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            placeholder="your_username"
+            placeholder="Enter your username or email"
             leftIcon={<User size={16} />}
             disabled={isSubmitting}
           />

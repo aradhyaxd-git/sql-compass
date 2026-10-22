@@ -5,16 +5,22 @@ import { verifyTotpCode } from '../utils/totpUtils.js'
 import { logger } from '../utils/logger.js'
 
 export async function initiatePasswordReset(
-  usernameInput: string
+  identifierInput: string
 ): Promise<{ challengeToken: string; username: string }> {
-  const username = (usernameInput || '').toLowerCase().trim()
-  if (!username) {
-    throw new Error('Username is required')
+  const identifier = (identifierInput || '').toLowerCase().trim()
+  if (!identifier) {
+    throw new Error('Username or email is required')
   }
 
-  const user = await User.findOne({ username })
+  const user = await User.findOne({
+    $or: [
+      { username: identifier },
+      { email: identifier },
+    ],
+  }).select('+twoFactorSecret')
+
   if (!user) {
-    throw new Error('No account found with this username')
+    throw new Error('No account found with this username or email')
   }
 
   if (!user.twoFactorEnabled || !user.twoFactorSecret) {

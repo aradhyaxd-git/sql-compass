@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Sun, Moon, Command, LogOut } from 'lucide-react'
+import { Sun, Moon, Command, LogOut, ChevronDown } from 'lucide-react'
 import { useTheme } from '@/context/ThemeContext'
 import { useAuth } from '@/context/AuthContext'
 import ShortcutsModal from '@/components/ui/ShortcutsModal'
@@ -203,19 +203,42 @@ function UserMenu() {
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 8,
-          background: 'transparent',
-          border: 'none',
+          gap: 7,
+          background: 'var(--bg-subtle)',
+          border: '1px solid var(--border-default)',
+          borderRadius: 20,
           cursor: 'pointer',
-          padding: 2,
+          padding: '3px 8px 3px 4px',
+          transition: 'all 0.15s ease',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.borderColor = 'var(--border-strong, var(--border-default))'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.borderColor = 'var(--border-default)'
         }}
       >
         <UserAvatar
           imageUrl={user.imageUrl}
-          name={user.fullName || user.firstName}
-          size={30}
+          name={user.fullName || user.username || user.firstName}
+          size={24}
           shape="circle"
         />
+        <span
+          style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 12,
+            fontWeight: 500,
+            color: 'var(--text-primary)',
+            maxWidth: 120,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {user.username ? `@${user.username}` : user.firstName}
+        </span>
+        <ChevronDown size={13} style={{ color: 'var(--text-muted)' }} />
       </button>
 
       {isOpen && (
@@ -229,7 +252,7 @@ function UserMenu() {
               position: 'absolute',
               right: 0,
               top: 'calc(100% + 8px)',
-              width: 220,
+              width: 230,
               background: 'var(--bg-card)',
               border: '1px solid var(--border-default)',
               borderRadius: 10,
@@ -239,31 +262,44 @@ function UserMenu() {
             }}
           >
             <div style={{ marginBottom: 10, borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
-              <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13, color: 'var(--text-primary)' }}>
-                {user.fullName}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13, color: 'var(--text-primary)' }}>
+                  {user.fullName || user.username}
+                </div>
+                {user.role === 'admin' && (
+                  <span
+                    style={{
+                      padding: '2px 6px',
+                      borderRadius: 4,
+                      background: 'var(--status-warning-bg)',
+                      border: '1px solid rgba(245, 158, 11, 0.3)',
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 10,
+                      fontWeight: 700,
+                      color: 'var(--status-warning)',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    Admin
+                  </span>
+                )}
               </div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {user.email}
-              </div>
-              {user.role === 'admin' && (
-                <span
+              {user.username && (
+                <div
                   style={{
-                    display: 'inline-block',
-                    marginTop: 6,
-                    padding: '2px 6px',
-                    borderRadius: 4,
-                    background: 'var(--status-warning-bg)',
-                    border: '1px solid rgba(245, 158, 11, 0.3)',
                     fontFamily: 'var(--font-mono)',
-                    fontSize: 10,
-                    fontWeight: 700,
-                    color: 'var(--status-warning)',
-                    textTransform: 'uppercase',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: 'var(--brand-primary)',
+                    marginTop: 2,
                   }}
                 >
-                  Admin
-                </span>
+                  @{user.username}
+                </div>
               )}
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 3 }}>
+                {user.email}
+              </div>
             </div>
 
             <Link

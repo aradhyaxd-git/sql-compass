@@ -3,6 +3,7 @@ import { Sparkles, CheckCircle2, Award } from 'lucide-react'
 
 interface DashboardHeaderProps {
   firstName?: string
+  username?: string
   missionsCompleted: number
   totalMissions: number
   totalXP: number
@@ -10,6 +11,7 @@ interface DashboardHeaderProps {
 
 export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   firstName,
+  username,
   missionsCompleted,
   totalMissions,
   totalXP,
@@ -45,18 +47,36 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
           <Sparkles size={12} />
           <span>CURATED PRACTICE TRACK</span>
         </div>
-        <h1
-          style={{
-            fontFamily: 'var(--font-display)',
-            fontWeight: 700,
-            fontSize: 26,
-            color: 'var(--text-primary)',
-            letterSpacing: '-0.02em',
-            margin: 0,
-          }}
-        >
-          {firstName ? `Welcome back, ${firstName}` : 'SQL Challenges & Missions'}
-        </h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <h1
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontWeight: 700,
+              fontSize: 26,
+              color: 'var(--text-primary)',
+              letterSpacing: '-0.02em',
+              margin: 0,
+            }}
+          >
+            {firstName ? `Welcome back, ${firstName}` : username ? `Welcome back, @${username}` : 'SQL Challenges & Missions'}
+          </h1>
+          {username && (
+            <span
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: 12,
+                fontWeight: 600,
+                color: 'var(--brand-primary)',
+                background: 'var(--brand-muted)',
+                border: '1px solid var(--brand-border)',
+                padding: '2px 8px',
+                borderRadius: 6,
+              }}
+            >
+              @{username}
+            </span>
+          )}
+        </div>
         <p
           style={{
             fontSize: 14,

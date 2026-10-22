@@ -213,18 +213,37 @@ export default function Profile() {
               />
 
               <div>
-                <h1
-                  style={{
-                    fontFamily: 'var(--font-display)',
-                    fontWeight: 700,
-                    fontSize: 22,
-                    color: 'var(--text-primary)',
-                    letterSpacing: '-0.02em',
-                    marginBottom: 4,
-                  }}
-                >
-                  {user?.fullName ?? user?.primaryEmailAddress?.emailAddress ?? 'Developer Profile'}
-                </h1>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>
+                  <h1
+                    style={{
+                      fontFamily: 'var(--font-display)',
+                      fontWeight: 700,
+                      fontSize: 22,
+                      color: 'var(--text-primary)',
+                      letterSpacing: '-0.02em',
+                      margin: 0,
+                    }}
+                  >
+                    {user?.fullName ?? user?.primaryEmailAddress?.emailAddress ?? 'Developer Profile'}
+                  </h1>
+                  {user?.username && (
+                    <span
+                      style={{
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: 'var(--brand-primary)',
+                        background: 'var(--brand-muted)',
+                        border: '1px solid var(--brand-border)',
+                        padding: '2px 8px',
+                        borderRadius: 6,
+                        letterSpacing: '0.02em',
+                      }}
+                    >
+                      @{user.username}
+                    </span>
+                  )}
+                </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <div
                     style={{

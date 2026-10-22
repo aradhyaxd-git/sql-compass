@@ -86,6 +86,7 @@ export default function Dashboard() {
           <div style={{ maxWidth: 1200, margin: '0 auto' }}>
             <DashboardHeader
               firstName={user?.firstName}
+              username={user?.username}
               missionsCompleted={stats?.missionsCompleted ?? 0}
               totalMissions={assignments?.length ?? 31}
               totalXP={stats?.totalXP ?? 0}
