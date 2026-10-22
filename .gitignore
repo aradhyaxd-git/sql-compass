@@ -6,3 +6,5 @@ DOCUMENTATION_INDEDX.md
 INTERVIEW_GUIDE.md
 ARCHITECTURE.md
 .DS_Store
+.agents/
+skills-lock.json
