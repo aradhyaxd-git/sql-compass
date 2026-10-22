@@ -15,6 +15,7 @@ async function runAuthSecurityTests() {
   const dummyUser: any = {
     _id: '654321098765432109876543',
     email: 'engineer@sqlcompass.internal',
+    username: 'sectester',
     name: 'Security Tester',
     picture: 'https://example.com/pic.png',
     role: 'admin',
@@ -25,6 +26,7 @@ async function runAuthSecurityTests() {
   const decoded = verifySessionToken(sessionToken)
   assert.strictEqual(decoded.sub, dummyUser._id)
   assert.strictEqual(decoded.email, dummyUser.email)
+  assert.strictEqual(decoded.username, dummyUser.username)
   assert.strictEqual(decoded.role, dummyUser.role)
   console.log('Session JWT signing and verification passed.')
 

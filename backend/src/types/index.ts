@@ -94,6 +94,7 @@ declare global {
       userId?: string
       userRole?: 'user' | 'admin'
       userEmail?: string
+      userUsername?: string
     }
   }
 }

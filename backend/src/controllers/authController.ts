@@ -3,10 +3,11 @@ import {
   getGoogleAuthorizationUrl,
   exchangeGoogleCode,
   authenticateWithPassword,
+  registerWithPassword,
   verify2FALogin,
+  confirm2FASetupWithChallenge,
   generate2FASetup,
   confirm2FASetup,
-  disable2FA,
   requestPasswordReset,
   verifyPasswordResetToken,
   completePasswordReset,
@@ -48,23 +49,7 @@ export const googleCallback = async (req: Request, res: Response): Promise<void>
         : `${process.env.CLIENT_ORIGIN || 'http://localhost:5173'}/auth/callback`
 
     const result = await exchangeGoogleCode(code, effectiveRedirectUri)
-
-    if (result.mfaRequired) {
-      res.status(200).json({
-        success: true,
-        mfaRequired: true,
-        challengeToken: result.challengeToken,
-        email: result.email,
-      })
-      return
-    }
-
-    res.cookie(AUTH_COOKIE_NAME, result.token, getAuthCookieOptions())
-    res.status(200).json({
-      success: true,
-      mfaRequired: false,
-      data: { user: result.user },
-    })
+    res.status(200).json({ success: true, ...result })
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
     logger.error('Google OAuth token exchange failed', { event: 'google_callback_error', error: msg })
@@ -72,33 +57,41 @@ export const googleCallback = async (req: Request, res: Response): Promise<void>
   }
 }
 
+export const register = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { name, username, email, password } = req.body || {}
+
+    if (!name || !username || !email || !password) {
+      res.status(400).json({ success: false, message: 'All fields (name, username, email, password) are required' })
+      return
+    }
+
+    const result = await registerWithPassword(
+      String(name),
+      String(username),
+      String(email),
+      String(password)
+    )
+
+    res.status(201).json({ success: true, ...result })
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error)
+    res.status(400).json({ success: false, message: msg })
+  }
+}
+
 export const passwordLogin = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email, password } = req.body || {}
+    const { identifier, email, username, password } = req.body || {}
+    const loginIdentifier = identifier || username || email
 
-    if (!email || !password) {
-      res.status(400).json({ success: false, message: 'Email and password are required' })
+    if (!loginIdentifier || !password) {
+      res.status(400).json({ success: false, message: 'Username or email, and password are required' })
       return
     }
 
-    const result = await authenticateWithPassword(String(email), String(password))
-
-    if (result.mfaRequired) {
-      res.status(200).json({
-        success: true,
-        mfaRequired: true,
-        challengeToken: result.challengeToken,
-        email: result.email,
-      })
-      return
-    }
-
-    res.cookie(AUTH_COOKIE_NAME, result.token, getAuthCookieOptions())
-    res.status(200).json({
-      success: true,
-      mfaRequired: false,
-      data: { user: result.user },
-    })
+    const result = await authenticateWithPassword(String(loginIdentifier), String(password))
+    res.status(200).json({ success: true, ...result })
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
     res.status(401).json({ success: false, message: msg })
@@ -123,6 +116,27 @@ export const verify2FALoginController = async (req: Request, res: Response): Pro
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
     res.status(401).json({ success: false, message: msg })
+  }
+}
+
+export const confirm2FASetupWithChallengeController = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { challengeToken, code } = req.body || {}
+
+    if (!challengeToken || !code) {
+      res.status(400).json({ success: false, message: 'Challenge token and 6-digit code are required' })
+      return
+    }
+
+    const result = await confirm2FASetupWithChallenge(String(challengeToken), String(code))
+    res.cookie(AUTH_COOKIE_NAME, result.token, getAuthCookieOptions())
+    res.status(200).json({
+      success: true,
+      data: { user: result.user },
+    })
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error)
+    res.status(400).json({ success: false, message: msg })
   }
 }
 
@@ -157,28 +171,6 @@ export const confirm2FAController = async (req: Request, res: Response): Promise
     }
 
     const result = await confirm2FASetup(userId, String(code))
-    res.status(200).json({ success: true, message: result.message })
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error)
-    res.status(400).json({ success: false, message: msg })
-  }
-}
-
-export const disable2FAController = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const userId = req.userId
-    if (!userId) {
-      res.status(401).json({ success: false, message: 'Authentication required' })
-      return
-    }
-
-    const { code } = req.body || {}
-    if (!code) {
-      res.status(400).json({ success: false, message: '6-digit code is required' })
-      return
-    }
-
-    const result = await disable2FA(userId, String(code))
     res.status(200).json({ success: true, message: result.message })
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
@@ -232,11 +224,7 @@ export const resetPasswordController = async (req: Request, res: Response): Prom
     }
 
     const result = await completePasswordReset(String(token), String(newPassword))
-    res.cookie(AUTH_COOKIE_NAME, result.token, getAuthCookieOptions())
-    res.status(200).json({
-      success: true,
-      data: { user: result.user },
-    })
+    res.status(200).json({ success: true, ...result })
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
     res.status(400).json({ success: false, message: msg })
@@ -259,6 +247,7 @@ export const getCurrentUser = async (req: Request, res: Response): Promise<void>
           user: {
             id: userId,
             email: req.userEmail || '',
+            username: req.userEmail?.split('@')[0] || 'user',
             name: 'User',
             role: req.userRole || 'user',
             twoFactorEnabled: false,
@@ -274,6 +263,7 @@ export const getCurrentUser = async (req: Request, res: Response): Promise<void>
         user: {
           id: user._id.toString(),
           email: user.email,
+          username: user.username || user.email.split('@')[0],
           name: user.name,
           picture: user.picture,
           role: user.role,

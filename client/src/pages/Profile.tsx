@@ -85,7 +85,7 @@ function StatCard({ label, value, icon: Icon }: { label: string; value: string; 
 }
 
 export default function Profile() {
-  const { user, isLoaded, signOut, setup2FA, confirm2FA, disable2FA } = useAuth()
+  const { user, isLoaded, signOut, setup2FA, confirm2FA } = useAuth()
   const navigate = useNavigate()
   const { data: stats, isLoading: statsLoading } = useUserStats()
   const { data: attempts } = useAttemptHistory()
@@ -94,8 +94,6 @@ export default function Profile() {
   const [isSettingUp2FA, setIsSettingUp2FA] = useState(false)
   const [setupData, setSetupData] = useState<{ secret: string; qrCodeUrl: string } | null>(null)
   const [setupCode, setSetupCode] = useState('')
-  const [disableCode, setDisableCode] = useState('')
-  const [isDisabling2FA, setIsDisabling2FA] = useState(false)
   const [is2FASubmitting, setIs2FASubmitting] = useState(false)
   const [twoFactorMessage, setTwoFactorMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [copiedSecret, setCopiedSecret] = useState(false)
@@ -132,23 +130,6 @@ export default function Profile() {
       setSetupCode('')
     } catch (err: any) {
       setTwoFactorMessage({ type: 'error', text: err.response?.data?.message || err.message || 'Invalid 2FA code' })
-    } finally {
-      setIs2FASubmitting(false)
-    }
-  }
-
-  const handleDisable2FA = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!disableCode) return
-    setIs2FASubmitting(true)
-    setTwoFactorMessage(null)
-    try {
-      await disable2FA(disableCode)
-      setTwoFactorMessage({ type: 'success', text: 'Two-factor authentication disabled.' })
-      setIsDisabling2FA(false)
-      setDisableCode('')
-    } catch (err: any) {
-      setTwoFactorMessage({ type: 'error', text: err.response?.data?.message || err.message || 'Failed to disable 2FA' })
     } finally {
       setIs2FASubmitting(false)
     }
@@ -643,78 +624,30 @@ export default function Profile() {
               )
             ) : (
               <div>
-                {!isDisabling2FA ? (
+                {!isSettingUp2FA ? (
                   <button
                     type="button"
-                    onClick={() => setIsDisabling2FA(true)}
+                    onClick={handleStartSetup2FA}
+                    disabled={is2FASubmitting}
                     style={{
                       padding: '8px 14px',
                       borderRadius: 6,
                       background: 'var(--bg-subtle)',
                       border: '1px solid var(--border-default)',
-                      color: 'var(--status-danger)',
+                      color: 'var(--text-secondary)',
                       fontFamily: 'var(--font-sans)',
                       fontSize: 12,
                       fontWeight: 500,
-                      cursor: 'pointer',
+                      cursor: is2FASubmitting ? 'not-allowed' : 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
                     }}
                   >
-                    Disable Two-Factor Authentication
+                    <KeyRound size={13} />
+                    <span>Re-enroll Authenticator App (New Device)</span>
                   </button>
-                ) : (
-                  <form onSubmit={handleDisable2FA} style={{ display: 'flex', alignItems: 'center', gap: 8, maxWidth: 360 }}>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={6}
-                      value={disableCode}
-                      onChange={(e) => setDisableCode(e.target.value.replace(/\D/g, ''))}
-                      placeholder="6-digit TOTP code"
-                      required
-                      style={{
-                        padding: '6px 10px',
-                        borderRadius: 6,
-                        border: '1px solid var(--border-default)',
-                        background: 'var(--bg-elevated)',
-                        color: 'var(--text-primary)',
-                        fontFamily: 'var(--font-mono)',
-                        fontSize: 13,
-                        outline: 'none',
-                      }}
-                    />
-                    <button
-                      type="submit"
-                      disabled={is2FASubmitting || disableCode.length !== 6}
-                      style={{
-                        padding: '6px 12px',
-                        borderRadius: 6,
-                        background: 'var(--status-danger)',
-                        border: 'none',
-                        color: '#ffffff',
-                        fontFamily: 'var(--font-sans)',
-                        fontSize: 12,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {is2FASubmitting ? 'Disabling...' : 'Confirm Disable'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setIsDisabling2FA(false)}
-                      style={{
-                        padding: '6px 10px',
-                        borderRadius: 6,
-                        background: 'transparent',
-                        border: '1px solid var(--border-default)',
-                        color: 'var(--text-muted)',
-                        fontSize: 12,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Cancel
-                    </button>
-                  </form>
-                )}
+                ) : null}
               </div>
             )}
           </div>

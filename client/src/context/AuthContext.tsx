@@ -4,6 +4,7 @@ import api from '@/services/api'
 export interface UserProfile {
   id: string
   email: string
+  username: string
   fullName: string
   firstName: string
   imageUrl?: string
@@ -17,6 +18,7 @@ export interface UserProfile {
 interface RawUserPayload {
   id: string
   email: string
+  username?: string
   name: string
   picture?: string
   role?: 'user' | 'admin'
@@ -25,8 +27,12 @@ interface RawUserPayload {
 
 export interface AuthLoginResponse {
   mfaRequired: boolean
-  challengeToken?: string
-  email?: string
+  mfaSetupRequired: boolean
+  challengeToken: string
+  qrCodeUrl?: string
+  secret?: string
+  email: string
+  username?: string
 }
 
 interface AuthContextType {
@@ -35,15 +41,17 @@ interface AuthContextType {
   isLoaded: boolean
   isSignedIn: boolean
   signInWithGoogle: () => Promise<void>
-  signInWithPassword: (email: string, password: string) => Promise<AuthLoginResponse>
+  signIn: (identifier: string, password: string) => Promise<AuthLoginResponse>
+  signUp: (name: string, username: string, email: string, password: string) => Promise<AuthLoginResponse>
   handleOAuthCallback: (code: string) => Promise<AuthLoginResponse>
   verify2FALogin: (challengeToken: string, code: string) => Promise<void>
+  confirm2FASetupWithChallenge: (challengeToken: string, code: string) => Promise<void>
   setup2FA: () => Promise<{ secret: string; qrCodeUrl: string }>
   confirm2FA: (code: string) => Promise<void>
   disable2FA: (code: string) => Promise<void>
   requestPasswordReset: (email: string) => Promise<{ message: string; resetToken?: string; expiresInMinutes: number }>
   verifyResetToken: (token: string) => Promise<{ valid: boolean; email?: string; remainingSeconds?: number }>
-  completePasswordReset: (token: string, newPassword: string) => Promise<void>
+  completePasswordReset: (token: string, newPassword: string) => Promise<AuthLoginResponse>
   signOut: () => Promise<void>
   refreshUser: () => Promise<void>
   getToken: () => Promise<string | null>
@@ -53,12 +61,14 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 function formatUserProfile(raw: RawUserPayload): UserProfile {
   const nameParts = (raw.name || '').trim().split(' ')
-  const firstName = nameParts[0] || raw.email.split('@')[0] || 'User'
+  const firstName = nameParts[0] || raw.username || raw.email.split('@')[0] || 'User'
+  const username = raw.username || raw.email.split('@')[0] || 'user'
 
   return {
     id: raw.id,
     email: raw.email,
-    fullName: raw.name || raw.email.split('@')[0] || 'User',
+    username,
+    fullName: raw.name || username,
     firstName,
     imageUrl: raw.picture || '',
     role: raw.role || 'user',
@@ -73,7 +83,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<UserProfile | null>(null)
   const [isLoaded, setIsLoaded] = useState<boolean>(false)
 
-  // Clear any legacy localStorage token to ensure 100% cookie isolation
+  // Clear any legacy localStorage token
   useEffect(() => {
     try {
       localStorage.removeItem('sqlcompass_token')
@@ -119,36 +129,90 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (res.data?.mfaRequired) {
       return {
         mfaRequired: true,
+        mfaSetupRequired: !!res.data.mfaSetupRequired,
         challengeToken: res.data.challengeToken,
+        qrCodeUrl: res.data.qrCodeUrl,
+        secret: res.data.secret,
         email: res.data.email,
+        username: res.data.username,
       }
     }
 
     if (res.data?.success && res.data?.data?.user) {
       setUser(formatUserProfile(res.data.data.user))
-      return { mfaRequired: false }
+      return {
+        mfaRequired: false,
+        mfaSetupRequired: false,
+        challengeToken: '',
+        email: res.data.data.user.email,
+        username: res.data.data.user.username,
+      }
     }
 
     throw new Error(res.data?.message || 'OAuth token exchange failed')
   }
 
-  const signInWithPassword = async (email: string, password: string): Promise<AuthLoginResponse> => {
-    const res = await api.post('/api/auth/login', { email, password })
+  const signIn = async (identifier: string, password: string): Promise<AuthLoginResponse> => {
+    const res = await api.post('/api/auth/login', { identifier, password })
 
     if (res.data?.mfaRequired) {
       return {
         mfaRequired: true,
+        mfaSetupRequired: !!res.data.mfaSetupRequired,
         challengeToken: res.data.challengeToken,
+        qrCodeUrl: res.data.qrCodeUrl,
+        secret: res.data.secret,
         email: res.data.email,
+        username: res.data.username,
       }
     }
 
     if (res.data?.success && res.data?.data?.user) {
       setUser(formatUserProfile(res.data.data.user))
-      return { mfaRequired: false }
+      return {
+        mfaRequired: false,
+        mfaSetupRequired: false,
+        challengeToken: '',
+        email: res.data.data.user.email,
+        username: res.data.data.user.username,
+      }
     }
 
-    throw new Error(res.data?.message || 'Invalid credentials')
+    throw new Error(res.data?.message || 'Invalid username or password')
+  }
+
+  const signUp = async (
+    name: string,
+    username: string,
+    email: string,
+    password: string
+  ): Promise<AuthLoginResponse> => {
+    const res = await api.post('/api/auth/register', { name, username, email, password })
+
+    if (res.data?.mfaRequired) {
+      return {
+        mfaRequired: true,
+        mfaSetupRequired: !!res.data.mfaSetupRequired,
+        challengeToken: res.data.challengeToken,
+        qrCodeUrl: res.data.qrCodeUrl,
+        secret: res.data.secret,
+        email: res.data.email,
+        username: res.data.username,
+      }
+    }
+
+    if (res.data?.success && res.data?.data?.user) {
+      setUser(formatUserProfile(res.data.data.user))
+      return {
+        mfaRequired: false,
+        mfaSetupRequired: false,
+        challengeToken: '',
+        email: res.data.data.user.email,
+        username: res.data.data.user.username,
+      }
+    }
+
+    throw new Error(res.data?.message || 'Registration failed')
   }
 
   const verify2FALogin = async (challengeToken: string, code: string): Promise<void> => {
@@ -157,6 +221,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(formatUserProfile(res.data.data.user))
     } else {
       throw new Error(res.data?.message || 'Two-factor verification failed')
+    }
+  }
+
+  const confirm2FASetupWithChallenge = async (challengeToken: string, code: string): Promise<void> => {
+    const res = await api.post('/api/auth/2fa/setup-confirm', { challengeToken, code })
+    if (res.data?.success && res.data?.data?.user) {
+      setUser(formatUserProfile(res.data.data.user))
+    } else {
+      throw new Error(res.data?.message || 'Two-factor setup verification failed')
     }
   }
 
@@ -200,13 +273,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { valid: false }
   }
 
-  const completePasswordReset = async (token: string, newPassword: string): Promise<void> => {
+  const completePasswordReset = async (token: string, newPassword: string): Promise<AuthLoginResponse> => {
     const res = await api.post('/api/auth/reset-password', { token, newPassword })
+    if (res.data?.mfaRequired) {
+      return {
+        mfaRequired: true,
+        mfaSetupRequired: !!res.data.mfaSetupRequired,
+        challengeToken: res.data.challengeToken,
+        qrCodeUrl: res.data.qrCodeUrl,
+        secret: res.data.secret,
+        email: res.data.email,
+        username: res.data.username,
+      }
+    }
     if (res.data?.success && res.data?.data?.user) {
       setUser(formatUserProfile(res.data.data.user))
-    } else {
-      throw new Error(res.data?.message || 'Failed to complete password reset')
+      return {
+        mfaRequired: false,
+        mfaSetupRequired: false,
+        challengeToken: '',
+        email: res.data.data.user.email,
+        username: res.data.data.user.username,
+      }
     }
+    throw new Error(res.data?.message || 'Failed to complete password reset')
   }
 
   const signOut = async () => {
@@ -229,9 +319,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoaded,
         isSignedIn: Boolean(user),
         signInWithGoogle,
-        signInWithPassword,
+        signIn,
+        signUp,
         handleOAuthCallback,
         verify2FALogin,
+        confirm2FASetupWithChallenge,
         setup2FA,
         confirm2FA,
         disable2FA,

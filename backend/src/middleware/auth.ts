@@ -46,6 +46,7 @@ export const requireAuth = async (
     req.userId = payload.sub
     req.userRole = payload.role
     req.userEmail = payload.email
+    req.userUsername = payload.username
     updateTraceUser(payload.sub)
     next()
   } catch {
@@ -71,6 +72,7 @@ export const optionalAuth = async (
     req.userId = payload.sub
     req.userRole = payload.role
     req.userEmail = payload.email
+    req.userUsername = payload.username
     updateTraceUser(payload.sub)
     next()
   } catch {

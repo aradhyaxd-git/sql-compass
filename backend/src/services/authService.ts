@@ -12,7 +12,7 @@ const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || ''
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || ''
 const JWT_SECRET = process.env.JWT_SECRET || 'sql-compass-secure-jwt-default-secret-change-in-production'
 const JWT_EXPIRES_IN = '7d'
-const CHALLENGE_EXPIRES_IN = '5m'
+const CHALLENGE_EXPIRES_IN = '10m'
 const RESET_TOKEN_EXPIRES_MS = 15 * 60 * 1000
 
 const oauthClient = new OAuth2Client(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET)
@@ -20,6 +20,7 @@ const oauthClient = new OAuth2Client(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET)
 export interface UserSessionPayload {
   sub: string
   email: string
+  username: string
   name: string
   picture?: string
   role: 'user' | 'admin'
@@ -28,6 +29,7 @@ export interface UserSessionPayload {
 export interface UserResponse {
   id: string
   email: string
+  username: string
   name: string
   picture?: string
   role: string
@@ -35,8 +37,22 @@ export interface UserResponse {
 }
 
 export type AuthResult =
-  | { mfaRequired: false; token: string; user: UserResponse }
-  | { mfaRequired: true; challengeToken: string; email: string }
+  | {
+      mfaRequired: true
+      mfaSetupRequired: false
+      challengeToken: string
+      email: string
+      username: string
+    }
+  | {
+      mfaRequired: true
+      mfaSetupRequired: true
+      challengeToken: string
+      qrCodeUrl: string
+      secret: string
+      email: string
+      username: string
+    }
 
 export function getAuthCookieOptions() {
   const isProduction = process.env.NODE_ENV === 'production'
@@ -53,6 +69,7 @@ export function generateSessionToken(user: IUser): string {
   const payload: UserSessionPayload = {
     sub: user._id.toString(),
     email: user.email,
+    username: user.username || user.email.split('@')[0],
     name: user.name,
     picture: user.picture,
     role: user.role,
@@ -75,6 +92,62 @@ export function verify2FAChallengeToken(token: string): { sub: string } {
     throw new Error('Invalid challenge token')
   }
   return { sub: payload.sub }
+}
+
+export async function generateUniqueUsername(preferredBase: string, email: string): Promise<string> {
+  let base = (preferredBase || email.split('@')[0] || 'user')
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, '')
+    .slice(0, 20)
+
+  if (base.length < 3) {
+    base = 'user_' + base
+  }
+
+  let candidate = base
+  let counter = 1
+
+  while (await User.exists({ username: candidate })) {
+    candidate = `${base}${counter}`
+    counter++
+  }
+
+  return candidate
+}
+
+async function prepareMandatory2FAResult(user: IUser): Promise<AuthResult> {
+  const challengeToken = generate2FAChallengeToken(user._id.toString())
+
+  if (user.twoFactorEnabled) {
+    return {
+      mfaRequired: true,
+      mfaSetupRequired: false,
+      challengeToken,
+      email: user.email,
+      username: user.username,
+    }
+  }
+
+  const secret = generateSecret()
+  const otpauthUri = generateURI({
+    issuer: 'SQL Compass',
+    label: `${user.username} (${user.email})`,
+    secret,
+  })
+  const qrCodeUrl = await QRCode.toDataURL(otpauthUri)
+
+  user.twoFactorTempSecret = secret
+  await user.save()
+
+  return {
+    mfaRequired: true,
+    mfaSetupRequired: true,
+    challengeToken,
+    qrCodeUrl,
+    secret,
+    email: user.email,
+    username: user.username,
+  }
 }
 
 export function getGoogleAuthorizationUrl(redirectUri: string): string {
@@ -129,131 +202,146 @@ export async function exchangeGoogleCode(
   let user = await User.findOne({ $or: [{ googleId }, { email }] })
 
   if (!user) {
+    const uniqueUsername = await generateUniqueUsername(name, email)
     user = await User.create({
       email,
+      username: uniqueUsername,
       name,
       picture,
       googleId,
       role: isAdmin ? 'admin' : 'user',
+      twoFactorEnabled: false,
     })
     logger.info('Created new user via Google OAuth', { event: 'user_created', userId: user._id.toString() })
   } else {
     user.name = name
     user.picture = picture
     if (!user.googleId) user.googleId = googleId
+    if (!user.username) {
+      user.username = await generateUniqueUsername(user.name, user.email)
+    }
     if (isAdmin && user.role !== 'admin') {
       user.role = 'admin'
     }
     await user.save()
   }
 
-  if (user.twoFactorEnabled) {
-    const challengeToken = generate2FAChallengeToken(user._id.toString())
-    return {
-      mfaRequired: true,
-      challengeToken,
-      email: user.email,
-    }
-  }
-
-  const token = generateSessionToken(user)
-  return {
-    mfaRequired: false,
-    token,
-    user: {
-      id: user._id.toString(),
-      email: user.email,
-      name: user.name,
-      picture: user.picture,
-      role: user.role,
-      twoFactorEnabled: user.twoFactorEnabled,
-    },
-  }
+  return prepareMandatory2FAResult(user)
 }
 
-export async function authenticateWithPassword(
+export async function registerWithPassword(
+  nameInput: string,
+  usernameInput: string,
   emailInput: string,
   passwordInput: string
 ): Promise<AuthResult> {
+  const name = (nameInput || '').trim()
+  const rawUsername = (usernameInput || '').toLowerCase().trim()
   const email = (emailInput || '').toLowerCase().trim()
   const password = (passwordInput || '').trim()
 
-  if (!email || !password) {
-    throw new Error('Email and password are required')
+  if (!name || !rawUsername || !email || !password) {
+    throw new Error('Name, username, email, and password are required')
+  }
+
+  if (rawUsername.length < 3 || rawUsername.length > 30) {
+    throw new Error('Username must be between 3 and 30 characters long')
+  }
+
+  if (!/^[a-zA-Z0-9_-]+$/.test(rawUsername)) {
+    throw new Error('Username can only contain alphanumeric characters, underscores, and hyphens')
+  }
+
+  if (password.length < 8) {
+    throw new Error('Password must be at least 8 characters long')
+  }
+
+  const existingUsername = await User.findOne({ username: rawUsername })
+  if (existingUsername) {
+    throw new Error('Username is already taken. Please choose another username.')
+  }
+
+  const existingEmail = await User.findOne({ email })
+  if (existingEmail) {
+    throw new Error('An account with this email address already exists. Please sign in.')
+  }
+
+  const salt = await bcrypt.genSalt(12)
+  const passwordHash = await bcrypt.hash(password, salt)
+
+  const adminEmail = (process.env.ADMIN_EMAIL || '').toLowerCase().trim()
+  const isAdmin = adminEmail && email === adminEmail
+
+  const user = await User.create({
+    name,
+    username: rawUsername,
+    email,
+    passwordHash,
+    role: isAdmin ? 'admin' : 'user',
+    twoFactorEnabled: false,
+  })
+
+  logger.info('New user registered with credentials', { userId: user._id.toString(), username: user.username })
+  return prepareMandatory2FAResult(user)
+}
+
+export async function authenticateWithPassword(
+  identifierInput: string,
+  passwordInput: string
+): Promise<AuthResult> {
+  const identifier = (identifierInput || '').toLowerCase().trim()
+  const password = (passwordInput || '').trim()
+
+  if (!identifier || !password) {
+    throw new Error('Username or email, and password are required')
   }
 
   const envAdminEmail = (process.env.ADMIN_EMAIL || '').toLowerCase().trim()
   const envAdminPassword = process.env.ADMIN_PASSWORD || ''
 
-  if (envAdminEmail && envAdminPassword && email === envAdminEmail && password === envAdminPassword) {
-    let adminUser = await User.findOne({ email })
+  if (
+    envAdminEmail &&
+    envAdminPassword &&
+    (identifier === envAdminEmail || identifier === 'admin') &&
+    password === envAdminPassword
+  ) {
+    let adminUser = await User.findOne({ email: envAdminEmail })
     if (!adminUser) {
       adminUser = await User.create({
-        email,
+        email: envAdminEmail,
+        username: 'admin',
         name: 'Administrator',
         role: 'admin',
+        twoFactorEnabled: false,
       })
-    } else if (adminUser.role !== 'admin') {
-      adminUser.role = 'admin'
+    } else {
+      if (!adminUser.username) adminUser.username = 'admin'
+      if (adminUser.role !== 'admin') adminUser.role = 'admin'
       await adminUser.save()
     }
 
-    if (adminUser.twoFactorEnabled) {
-      const challengeToken = generate2FAChallengeToken(adminUser._id.toString())
-      return {
-        mfaRequired: true,
-        challengeToken,
-        email: adminUser.email,
-      }
-    }
-
-    const token = generateSessionToken(adminUser)
-    return {
-      mfaRequired: false,
-      token,
-      user: {
-        id: adminUser._id.toString(),
-        email: adminUser.email,
-        name: adminUser.name,
-        picture: adminUser.picture,
-        role: adminUser.role,
-        twoFactorEnabled: adminUser.twoFactorEnabled,
-      },
-    }
+    return prepareMandatory2FAResult(adminUser)
   }
 
-  const existingUser = await User.findOne({ email }).select('+passwordHash')
+  const existingUser = await User.findOne({
+    $or: [{ email: identifier }, { username: identifier }],
+  }).select('+passwordHash')
+
   if (!existingUser || !existingUser.passwordHash) {
-    throw new Error('Invalid email or password')
+    throw new Error('Invalid username/email or password')
   }
 
   const isMatch = await bcrypt.compare(password, existingUser.passwordHash)
   if (!isMatch) {
-    throw new Error('Invalid email or password')
+    throw new Error('Invalid username/email or password')
   }
 
-  if (existingUser.twoFactorEnabled) {
-    const challengeToken = generate2FAChallengeToken(existingUser._id.toString())
-    return {
-      mfaRequired: true,
-      challengeToken,
-      email: existingUser.email,
-    }
+  if (!existingUser.username) {
+    existingUser.username = await generateUniqueUsername(existingUser.name, existingUser.email)
+    await existingUser.save()
   }
 
-  const token = generateSessionToken(existingUser)
-  return {
-    mfaRequired: false,
-    token,
-    user: {
-      id: existingUser._id.toString(),
-      email: existingUser.email,
-      name: existingUser.name,
-      picture: existingUser.picture,
-      role: existingUser.role,
-      twoFactorEnabled: existingUser.twoFactorEnabled,
-    },
-  }
+  return prepareMandatory2FAResult(existingUser)
 }
 
 export async function verify2FALogin(
@@ -269,7 +357,7 @@ export async function verify2FALogin(
 
   const user = await User.findById(userId).select('+twoFactorSecret +lastTotpUsed')
   if (!user || !user.twoFactorEnabled || !user.twoFactorSecret) {
-    throw new Error('Two-factor authentication is not active on this account')
+    throw new Error('Two-factor authentication is not active on this account. Please complete setup.')
   }
 
   if (user.lastTotpUsed === normalizedCode) {
@@ -294,6 +382,59 @@ export async function verify2FALogin(
     user: {
       id: user._id.toString(),
       email: user.email,
+      username: user.username,
+      name: user.name,
+      picture: user.picture,
+      role: user.role,
+      twoFactorEnabled: user.twoFactorEnabled,
+    },
+  }
+}
+
+export async function confirm2FASetupWithChallenge(
+  challengeToken: string,
+  code: string
+): Promise<{ token: string; user: UserResponse }> {
+  const { sub: userId } = verify2FAChallengeToken(challengeToken)
+  const normalizedCode = (code || '').trim()
+
+  if (!/^\d{6}$/.test(normalizedCode)) {
+    throw new Error('Authentication code must be a 6-digit number')
+  }
+
+  const user = await User.findById(userId).select('+twoFactorTempSecret +lastTotpUsed')
+  if (!user || !user.twoFactorTempSecret) {
+    throw new Error('No pending two-factor setup found. Please sign in again.')
+  }
+
+  if (user.lastTotpUsed === normalizedCode) {
+    throw new Error('This authenticator code was already used. Please wait for the next code.')
+  }
+
+  const result = verifySync({
+    token: normalizedCode,
+    secret: user.twoFactorTempSecret,
+  })
+
+  if (!result.valid) {
+    throw new Error('Invalid verification code. Please check the current code in your authenticator app.')
+  }
+
+  user.twoFactorEnabled = true
+  user.twoFactorSecret = user.twoFactorTempSecret
+  user.twoFactorTempSecret = undefined
+  user.lastTotpUsed = normalizedCode
+  await user.save()
+
+  logger.info('Mandatory 2FA setup completed successfully', { userId })
+
+  const token = generateSessionToken(user)
+  return {
+    token,
+    user: {
+      id: user._id.toString(),
+      email: user.email,
+      username: user.username,
       name: user.name,
       picture: user.picture,
       role: user.role,
@@ -313,7 +454,7 @@ export async function generate2FASetup(
   const secret = generateSecret()
   const otpauthUri = generateURI({
     issuer: 'SQL Compass',
-    label: user.email,
+    label: `${user.username || user.email}`,
     secret,
   })
 
@@ -356,34 +497,6 @@ export async function confirm2FASetup(
 
   logger.info('2FA enabled for user', { userId })
   return { success: true, message: 'Two-factor authentication has been successfully enabled' }
-}
-
-export async function disable2FA(
-  userId: string,
-  code: string
-): Promise<{ success: boolean; message: string }> {
-  const normalizedCode = (code || '').trim()
-  const user = await User.findById(userId).select('+twoFactorSecret +lastTotpUsed')
-  if (!user || !user.twoFactorEnabled || !user.twoFactorSecret) {
-    throw new Error('Two-factor authentication is not enabled')
-  }
-
-  const result = verifySync({
-    token: normalizedCode,
-    secret: user.twoFactorSecret,
-  })
-
-  if (!result.valid) {
-    throw new Error('Invalid authentication code')
-  }
-
-  user.twoFactorEnabled = false
-  user.twoFactorSecret = undefined
-  user.lastTotpUsed = undefined
-  await user.save()
-
-  logger.info('2FA disabled for user', { userId })
-  return { success: true, message: 'Two-factor authentication has been disabled' }
 }
 
 export async function requestPasswordReset(
@@ -442,7 +555,7 @@ export async function verifyPasswordResetToken(
 export async function completePasswordReset(
   token: string,
   newPassword: string
-): Promise<{ token: string; user: UserResponse }> {
+): Promise<AuthResult> {
   if (!token || typeof token !== 'string') {
     throw new Error('Reset token is required')
   }
@@ -469,17 +582,5 @@ export async function completePasswordReset(
   await user.save()
 
   logger.info('Password reset completed', { userId: user._id.toString() })
-
-  const sessionToken = generateSessionToken(user)
-  return {
-    token: sessionToken,
-    user: {
-      id: user._id.toString(),
-      email: user.email,
-      name: user.name,
-      picture: user.picture,
-      role: user.role,
-      twoFactorEnabled: user.twoFactorEnabled,
-    },
-  }
+  return prepareMandatory2FAResult(user)
 }
