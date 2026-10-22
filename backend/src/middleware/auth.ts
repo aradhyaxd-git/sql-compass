@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express'
-import { verifySessionToken } from '../services/authService.js'
+import { verifySessionToken } from '../utils/tokenUtils.js'
 import { updateTraceUser } from '../utils/logger.js'
 
 function extractAuthToken(req: Request): string | null {

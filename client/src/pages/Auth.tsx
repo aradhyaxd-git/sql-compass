@@ -23,6 +23,7 @@ export default function Auth() {
     signInWithGoogle,
     signIn,
     signUp,
+    setUsername,
     handleOAuthCallback,
     verify2FALogin,
     confirm2FASetupWithChallenge,
@@ -31,23 +32,26 @@ export default function Auth() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
 
-  // Form mode: 'signin' | 'signup' | 'forgot'
-  const [mode, setMode] = useState<'signin' | 'signup' | 'forgot'>('signin')
+  // Form mode: 'signin' | 'signup' | 'forgot' | 'choose_username'
+  const [mode, setMode] = useState<'signin' | 'signup' | 'forgot' | 'choose_username'>('signin')
 
   // Inputs
-  const [identifier, setIdentifier] = useState('')
-  const [name, setName] = useState('')
-  const [username, setUsername] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [usernameInput, setUsernameInput] = useState('')
+  const [nameInput, setNameInput] = useState('')
+  const [emailInput, setEmailInput] = useState('')
+  const [passwordInput, setPasswordInput] = useState('')
+  const [chosenGoogleUsername, setChosenGoogleUsername] = useState('')
   const [totpCode, setTotpCode] = useState('')
 
-  // States
+  // State
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [isExchangingCode, setIsExchangingCode] = useState(false)
   const [copiedSecret, setCopiedSecret] = useState(false)
+
+  // Username prompt state for Google logins
+  const [googleChallengeToken, setGoogleChallengeToken] = useState<string | null>(null)
 
   // Mandatory 2FA Challenge & Setup State
   const [mfaState, setMfaState] = useState<{
@@ -55,7 +59,7 @@ export default function Auth() {
     isSetup: boolean
     qrCodeUrl?: string
     secret?: string
-    email: string
+    email?: string
     username?: string
   } | null>(null)
 
@@ -66,12 +70,16 @@ export default function Auth() {
   const oauthCode = searchParams.get('code')
 
   useEffect(() => {
-    if (oauthCode && !isSignedIn && !mfaState) {
+    if (oauthCode && !isSignedIn && !mfaState && !googleChallengeToken) {
       setIsExchangingCode(true)
       setErrorMessage(null)
       handleOAuthCallback(oauthCode)
         .then((res) => {
-          if (res.mfaRequired && res.challengeToken) {
+          if (res.needsUsername && res.challengeToken) {
+            setGoogleChallengeToken(res.challengeToken)
+            setMode('choose_username')
+            setIsExchangingCode(false)
+          } else if (res.mfaRequired && res.challengeToken) {
             setMfaState({
               challengeToken: res.challengeToken,
               isSetup: !!res.mfaSetupRequired,
@@ -91,7 +99,7 @@ export default function Auth() {
           setIsExchangingCode(false)
         })
     }
-  }, [oauthCode, isSignedIn, mfaState, handleOAuthCallback, navigate])
+  }, [oauthCode, isSignedIn, mfaState, googleChallengeToken, handleOAuthCallback, navigate])
 
   if (!isLoaded) {
     return (
@@ -103,14 +111,14 @@ export default function Auth() {
     )
   }
 
-  if (isSignedIn && !isExchangingCode && !mfaState) {
+  if (isSignedIn && !isExchangingCode && !mfaState && !googleChallengeToken) {
     return <Navigate to="/dashboard" replace />
   }
 
   const handleSignInSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!identifier || !password) {
-      setErrorMessage('Please enter your username/email and password.')
+    if (!usernameInput || !passwordInput) {
+      setErrorMessage('Please enter your username and password.')
       return
     }
 
@@ -118,8 +126,11 @@ export default function Auth() {
     setErrorMessage(null)
 
     try {
-      const res = await signIn(identifier, password)
-      if (res.mfaRequired && res.challengeToken) {
+      const res = await signIn(usernameInput, passwordInput)
+      if (res.needsUsername && res.challengeToken) {
+        setGoogleChallengeToken(res.challengeToken)
+        setMode('choose_username')
+      } else if (res.mfaRequired && res.challengeToken) {
         setMfaState({
           challengeToken: res.challengeToken,
           isSetup: !!res.mfaSetupRequired,
@@ -141,22 +152,22 @@ export default function Auth() {
 
   const handleSignUpSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name || !username || !email || !password) {
+    if (!nameInput || !usernameInput || !emailInput || !passwordInput) {
       setErrorMessage('All fields are required.')
       return
     }
 
-    if (username.length < 3) {
+    if (usernameInput.length < 3) {
       setErrorMessage('Username must be at least 3 characters long.')
       return
     }
 
-    if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
+    if (!/^[a-zA-Z0-9_-]+$/.test(usernameInput)) {
       setErrorMessage('Username can only contain letters, numbers, underscores, and hyphens.')
       return
     }
 
-    if (password.length < 8) {
+    if (passwordInput.length < 8) {
       setErrorMessage('Password must be at least 8 characters long.')
       return
     }
@@ -165,7 +176,7 @@ export default function Auth() {
     setErrorMessage(null)
 
     try {
-      const res = await signUp(name, username, email, password)
+      const res = await signUp(nameInput, usernameInput, emailInput, passwordInput)
       if (res.mfaRequired && res.challengeToken) {
         setMfaState({
           challengeToken: res.challengeToken,
@@ -180,6 +191,49 @@ export default function Auth() {
       }
     } catch (err: any) {
       const msg = err.response?.data?.message || err.message || 'Registration failed'
+      setErrorMessage(msg)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleSetUsernameSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!googleChallengeToken || !chosenGoogleUsername) {
+      setErrorMessage('Please enter a username.')
+      return
+    }
+
+    if (chosenGoogleUsername.length < 3) {
+      setErrorMessage('Username must be at least 3 characters long.')
+      return
+    }
+
+    if (!/^[a-zA-Z0-9_-]+$/.test(chosenGoogleUsername)) {
+      setErrorMessage('Username can only contain letters, numbers, underscores, and hyphens.')
+      return
+    }
+
+    setIsSubmitting(true)
+    setErrorMessage(null)
+
+    try {
+      const res = await setUsername(googleChallengeToken, chosenGoogleUsername)
+      setGoogleChallengeToken(null)
+      if (res.mfaRequired && res.challengeToken) {
+        setMfaState({
+          challengeToken: res.challengeToken,
+          isSetup: !!res.mfaSetupRequired,
+          qrCodeUrl: res.qrCodeUrl,
+          secret: res.secret,
+          email: res.email,
+          username: res.username,
+        })
+      } else {
+        navigate('/dashboard', { replace: true })
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Failed to set username'
       setErrorMessage(msg)
     } finally {
       setIsSubmitting(false)
@@ -323,6 +377,8 @@ export default function Auth() {
               ? 'Set Up Two-Factor Authentication'
               : mfaState
               ? 'Two-Factor Verification'
+              : mode === 'choose_username'
+              ? 'Choose a Username'
               : mode === 'signup'
               ? 'Create your account'
               : mode === 'forgot'
@@ -336,11 +392,13 @@ export default function Auth() {
               ? 'Two-factor authentication is required for all accounts.'
               : mfaState
               ? 'Enter the 6-digit code from your authenticator app.'
+              : mode === 'choose_username'
+              ? 'Pick a unique username to complete your Google account setup.'
               : mode === 'signup'
               ? 'Choose a unique username and enter your details.'
               : mode === 'forgot'
               ? 'Enter your account email to receive a temporary reset link.'
-              : 'Welcome back. Enter your credentials to continue.'}
+              : 'Welcome back. Enter your username and password to continue.'}
           </p>
         </div>
 
@@ -366,6 +424,109 @@ export default function Auth() {
                 Authenticating with Google...
               </div>
             </div>
+          ) : mode === 'choose_username' ? (
+            /* Choose Username Screen (Google Login Redirect) */
+            <form onSubmit={handleSetUsernameSubmit}>
+              {errorMessage && (
+                <div
+                  style={{
+                    marginBottom: 16,
+                    padding: '10px 14px',
+                    borderRadius: 8,
+                    background: 'var(--status-danger-bg)',
+                    border: '1px solid rgba(244, 63, 94, 0.3)',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 10,
+                  }}
+                >
+                  <AlertCircle size={16} color="var(--status-danger)" style={{ marginTop: 2, flexShrink: 0 }} />
+                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--status-danger)', lineHeight: 1.4 }}>
+                    {errorMessage}
+                  </div>
+                </div>
+              )}
+
+              <div style={{ marginBottom: 20 }}>
+                <label
+                  htmlFor="google-username"
+                  style={{
+                    display: 'block',
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: 'var(--text-secondary)',
+                    marginBottom: 6,
+                  }}
+                >
+                  Username (Unique to you)
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    id="google-username"
+                    type="text"
+                    value={chosenGoogleUsername}
+                    onChange={(e) => setChosenGoogleUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''))}
+                    placeholder="your_unique_username"
+                    required
+                    minLength={3}
+                    maxLength={30}
+                    autoFocus
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px 10px 36px',
+                      borderRadius: 8,
+                      border: '1px solid var(--border-default)',
+                      background: 'var(--bg-elevated)',
+                      color: 'var(--text-primary)',
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 13,
+                      outline: 'none',
+                    }}
+                  />
+                  <span
+                    style={{
+                      position: 'absolute',
+                      left: 12,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 13,
+                      color: 'var(--text-muted)',
+                    }}
+                  >
+                    @
+                  </span>
+                </div>
+                <p style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
+                  Letters, numbers, underscores, and hyphens only (min 3 characters).
+                </p>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSubmitting || chosenGoogleUsername.length < 3}
+                style={{
+                  width: '100%',
+                  padding: '12px 18px',
+                  borderRadius: 8,
+                  border: 'none',
+                  background: 'var(--brand-primary)',
+                  color: '#ffffff',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  cursor: isSubmitting || chosenGoogleUsername.length < 3 ? 'not-allowed' : 'pointer',
+                  opacity: isSubmitting || chosenGoogleUsername.length < 3 ? 0.6 : 1,
+                }}
+              >
+                {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <span>Set Username & Continue</span>}
+              </button>
+            </form>
           ) : mfaState ? (
             /* Mandatory 2FA Flow (Setup or Verification) */
             <form onSubmit={handle2FASubmit}>
@@ -842,8 +1003,8 @@ export default function Auth() {
                   <input
                     id="signup-name"
                     type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    value={nameInput}
+                    onChange={(e) => setNameInput(e.target.value)}
                     placeholder="Ada Lovelace"
                     required
                     style={{
@@ -884,8 +1045,8 @@ export default function Auth() {
                   <input
                     id="signup-username"
                     type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''))}
+                    value={usernameInput}
+                    onChange={(e) => setUsernameInput(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''))}
                     placeholder="ada_lovelace"
                     required
                     minLength={3}
@@ -936,8 +1097,8 @@ export default function Auth() {
                   <input
                     id="signup-email"
                     type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    value={emailInput}
+                    onChange={(e) => setEmailInput(e.target.value)}
                     placeholder="name@example.com"
                     required
                     style={{
@@ -978,8 +1139,8 @@ export default function Auth() {
                   <input
                     id="signup-password"
                     type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    value={passwordInput}
+                    onChange={(e) => setPasswordInput(e.target.value)}
                     placeholder="Create a secure password"
                     required
                     minLength={8}
@@ -1057,7 +1218,7 @@ export default function Auth() {
               </div>
             </form>
           ) : (
-            /* Unified Sign In Form */
+            /* Unified Sign In Form - Username Only */
             <div>
               {/* Continue with Google */}
               <button
@@ -1158,11 +1319,11 @@ export default function Auth() {
                 </div>
               )}
 
-              {/* Credentials Form */}
+              {/* Credentials Form - Username & Password */}
               <form onSubmit={handleSignInSubmit}>
                 <div style={{ marginBottom: 14 }}>
                   <label
-                    htmlFor="signin-identifier"
+                    htmlFor="signin-username"
                     style={{
                       display: 'block',
                       fontFamily: 'var(--font-sans)',
@@ -1172,15 +1333,15 @@ export default function Auth() {
                       marginBottom: 6,
                     }}
                   >
-                    Username or Email
+                    Username
                   </label>
                   <div style={{ position: 'relative' }}>
                     <input
-                      id="signin-identifier"
+                      id="signin-username"
                       type="text"
-                      value={identifier}
-                      onChange={(e) => setIdentifier(e.target.value)}
-                      placeholder="Username or email address"
+                      value={usernameInput}
+                      onChange={(e) => setUsernameInput(e.target.value.toLowerCase().trim())}
+                      placeholder="Enter username"
                       required
                       style={{
                         width: '100%',
@@ -1220,7 +1381,7 @@ export default function Auth() {
                       onClick={() => {
                         setMode('forgot')
                         setErrorMessage(null)
-                        setResetEmail(identifier.includes('@') ? identifier : '')
+                        setResetEmail('')
                       }}
                       style={{
                         background: 'none',
@@ -1239,8 +1400,8 @@ export default function Auth() {
                     <input
                       id="signin-password"
                       type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      value={passwordInput}
+                      onChange={(e) => setPasswordInput(e.target.value)}
                       placeholder="Enter password"
                       required
                       style={{

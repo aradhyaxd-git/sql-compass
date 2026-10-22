@@ -26,13 +26,15 @@ interface RawUserPayload {
 }
 
 export interface AuthLoginResponse {
-  mfaRequired: boolean
-  mfaSetupRequired: boolean
+  needsUsername?: boolean
+  mfaRequired?: boolean
+  mfaSetupRequired?: boolean
   challengeToken: string
   qrCodeUrl?: string
   secret?: string
-  email: string
+  email?: string
   username?: string
+  name?: string
 }
 
 interface AuthContextType {
@@ -41,14 +43,14 @@ interface AuthContextType {
   isLoaded: boolean
   isSignedIn: boolean
   signInWithGoogle: () => Promise<void>
-  signIn: (identifier: string, password: string) => Promise<AuthLoginResponse>
+  signIn: (username: string, password: string) => Promise<AuthLoginResponse>
   signUp: (name: string, username: string, email: string, password: string) => Promise<AuthLoginResponse>
+  setUsername: (challengeToken: string, username: string) => Promise<AuthLoginResponse>
   handleOAuthCallback: (code: string) => Promise<AuthLoginResponse>
   verify2FALogin: (challengeToken: string, code: string) => Promise<void>
   confirm2FASetupWithChallenge: (challengeToken: string, code: string) => Promise<void>
   setup2FA: () => Promise<{ secret: string; qrCodeUrl: string }>
   confirm2FA: (code: string) => Promise<void>
-  disable2FA: (code: string) => Promise<void>
   requestPasswordReset: (email: string) => Promise<{ message: string; resetToken?: string; expiresInMinutes: number }>
   verifyResetToken: (token: string) => Promise<{ valid: boolean; email?: string; remainingSeconds?: number }>
   completePasswordReset: (token: string, newPassword: string) => Promise<AuthLoginResponse>
@@ -126,8 +128,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const redirectUri = `${window.location.origin}/auth`
     const res = await api.post('/api/auth/google/callback', { code, redirectUri })
 
+    if (res.data?.needsUsername) {
+      return {
+        needsUsername: true,
+        challengeToken: res.data.challengeToken,
+        email: res.data.email,
+        name: res.data.name,
+      }
+    }
+
     if (res.data?.mfaRequired) {
       return {
+        needsUsername: false,
         mfaRequired: true,
         mfaSetupRequired: !!res.data.mfaSetupRequired,
         challengeToken: res.data.challengeToken,
@@ -141,6 +153,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (res.data?.success && res.data?.data?.user) {
       setUser(formatUserProfile(res.data.data.user))
       return {
+        needsUsername: false,
         mfaRequired: false,
         mfaSetupRequired: false,
         challengeToken: '',
@@ -152,11 +165,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     throw new Error(res.data?.message || 'OAuth token exchange failed')
   }
 
-  const signIn = async (identifier: string, password: string): Promise<AuthLoginResponse> => {
-    const res = await api.post('/api/auth/login', { identifier, password })
+  const setUsername = async (challengeToken: string, username: string): Promise<AuthLoginResponse> => {
+    const res = await api.post('/api/auth/set-username', { challengeToken, username })
 
     if (res.data?.mfaRequired) {
       return {
+        needsUsername: false,
         mfaRequired: true,
         mfaSetupRequired: !!res.data.mfaSetupRequired,
         challengeToken: res.data.challengeToken,
@@ -170,6 +184,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (res.data?.success && res.data?.data?.user) {
       setUser(formatUserProfile(res.data.data.user))
       return {
+        needsUsername: false,
+        mfaRequired: false,
+        mfaSetupRequired: false,
+        challengeToken: '',
+        email: res.data.data.user.email,
+        username: res.data.data.user.username,
+      }
+    }
+
+    throw new Error(res.data?.message || 'Failed to set username')
+  }
+
+  const signIn = async (username: string, password: string): Promise<AuthLoginResponse> => {
+    const res = await api.post('/api/auth/login', { username, password })
+
+    if (res.data?.needsUsername) {
+      return {
+        needsUsername: true,
+        challengeToken: res.data.challengeToken,
+        email: res.data.email,
+        name: res.data.name,
+      }
+    }
+
+    if (res.data?.mfaRequired) {
+      return {
+        needsUsername: false,
+        mfaRequired: true,
+        mfaSetupRequired: !!res.data.mfaSetupRequired,
+        challengeToken: res.data.challengeToken,
+        qrCodeUrl: res.data.qrCodeUrl,
+        secret: res.data.secret,
+        email: res.data.email,
+        username: res.data.username,
+      }
+    }
+
+    if (res.data?.success && res.data?.data?.user) {
+      setUser(formatUserProfile(res.data.data.user))
+      return {
+        needsUsername: false,
         mfaRequired: false,
         mfaSetupRequired: false,
         challengeToken: '',
@@ -191,6 +246,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (res.data?.mfaRequired) {
       return {
+        needsUsername: false,
         mfaRequired: true,
         mfaSetupRequired: !!res.data.mfaSetupRequired,
         challengeToken: res.data.challengeToken,
@@ -204,6 +260,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (res.data?.success && res.data?.data?.user) {
       setUser(formatUserProfile(res.data.data.user))
       return {
+        needsUsername: false,
         mfaRequired: false,
         mfaSetupRequired: false,
         challengeToken: '',
@@ -249,14 +306,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await refreshUser()
   }
 
-  const disable2FA = async (code: string): Promise<void> => {
-    const res = await api.post('/api/auth/2fa/disable', { code })
-    if (!res.data?.success) {
-      throw new Error(res.data?.message || 'Failed to disable 2FA')
-    }
-    await refreshUser()
-  }
-
   const requestPasswordReset = async (email: string) => {
     const res = await api.post('/api/auth/forgot-password', { email })
     if (res.data?.success) {
@@ -275,8 +324,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const completePasswordReset = async (token: string, newPassword: string): Promise<AuthLoginResponse> => {
     const res = await api.post('/api/auth/reset-password', { token, newPassword })
+    if (res.data?.needsUsername) {
+      return {
+        needsUsername: true,
+        challengeToken: res.data.challengeToken,
+        email: res.data.email,
+        name: res.data.name,
+      }
+    }
     if (res.data?.mfaRequired) {
       return {
+        needsUsername: false,
         mfaRequired: true,
         mfaSetupRequired: !!res.data.mfaSetupRequired,
         challengeToken: res.data.challengeToken,
@@ -289,6 +347,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (res.data?.success && res.data?.data?.user) {
       setUser(formatUserProfile(res.data.data.user))
       return {
+        needsUsername: false,
         mfaRequired: false,
         mfaSetupRequired: false,
         challengeToken: '',
@@ -321,12 +380,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signInWithGoogle,
         signIn,
         signUp,
+        setUsername,
         handleOAuthCallback,
         verify2FALogin,
         confirm2FASetupWithChallenge,
         setup2FA,
         confirm2FA,
-        disable2FA,
         requestPasswordReset,
         verifyResetToken,
         completePasswordReset,

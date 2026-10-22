@@ -6,7 +6,7 @@ import {
   verifySessionToken,
   generate2FAChallengeToken,
   verify2FAChallengeToken,
-} from '../services/authService.js'
+} from '../utils/tokenUtils.js'
 
 async function runAuthSecurityTests() {
   console.log('Testing Auth Security & 2FA Suite...')

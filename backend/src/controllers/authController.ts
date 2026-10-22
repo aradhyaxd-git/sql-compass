@@ -1,22 +1,24 @@
 import type { Request, Response } from 'express'
 import {
-  getGoogleAuthorizationUrl,
   exchangeGoogleCode,
   authenticateWithPassword,
   registerWithPassword,
+  setUsernameWithChallenge,
   verify2FALogin,
   confirm2FASetupWithChallenge,
   generate2FASetup,
   confirm2FASetup,
+  prepareMandatory2FAResult,
+} from '../services/authService.js'
+import { getGoogleAuthorizationUrl } from '../services/googleAuthService.js'
+import {
   requestPasswordReset,
   verifyPasswordResetToken,
   completePasswordReset,
-  getAuthCookieOptions,
-} from '../services/authService.js'
+} from '../services/passwordResetService.js'
+import { getAuthCookieOptions, AUTH_COOKIE_NAME } from '../utils/cookieUtils.js'
 import User from '../models/User.js'
 import { logger } from '../utils/logger.js'
-
-const AUTH_COOKIE_NAME = 'token'
 
 export const getGoogleUrl = (req: Request, res: Response): void => {
   try {
@@ -57,6 +59,23 @@ export const googleCallback = async (req: Request, res: Response): Promise<void>
   }
 }
 
+export const setUsernameController = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { challengeToken, username } = req.body || {}
+
+    if (!challengeToken || !username) {
+      res.status(400).json({ success: false, message: 'Challenge token and username are required' })
+      return
+    }
+
+    const result = await setUsernameWithChallenge(String(challengeToken), String(username))
+    res.status(200).json({ success: true, ...result })
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error)
+    res.status(400).json({ success: false, message: msg })
+  }
+}
+
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
     const { name, username, email, password } = req.body || {}
@@ -82,15 +101,14 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 
 export const passwordLogin = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { identifier, email, username, password } = req.body || {}
-    const loginIdentifier = identifier || username || email
+    const { username, password } = req.body || {}
 
-    if (!loginIdentifier || !password) {
-      res.status(400).json({ success: false, message: 'Username or email, and password are required' })
+    if (!username || !password) {
+      res.status(400).json({ success: false, message: 'Username and password are required' })
       return
     }
 
-    const result = await authenticateWithPassword(String(loginIdentifier), String(password))
+    const result = await authenticateWithPassword(String(username), String(password))
     res.status(200).json({ success: true, ...result })
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
@@ -223,7 +241,14 @@ export const resetPasswordController = async (req: Request, res: Response): Prom
       return
     }
 
-    const result = await completePasswordReset(String(token), String(newPassword))
+    const userId = await completePasswordReset(String(token), String(newPassword))
+    const user = await User.findById(userId)
+    if (!user) {
+      res.status(404).json({ success: false, message: 'User not found' })
+      return
+    }
+
+    const result = await prepareMandatory2FAResult(user)
     res.status(200).json({ success: true, ...result })
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
@@ -247,7 +272,7 @@ export const getCurrentUser = async (req: Request, res: Response): Promise<void>
           user: {
             id: userId,
             email: req.userEmail || '',
-            username: req.userEmail?.split('@')[0] || 'user',
+            username: req.userUsername || 'user',
             name: 'User',
             role: req.userRole || 'user',
             twoFactorEnabled: false,
@@ -263,7 +288,7 @@ export const getCurrentUser = async (req: Request, res: Response): Promise<void>
         user: {
           id: user._id.toString(),
           email: user.email,
-          username: user.username || user.email.split('@')[0],
+          username: user.username || 'user',
           name: user.name,
           picture: user.picture,
           role: user.role,

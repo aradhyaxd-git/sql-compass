@@ -2,6 +2,7 @@ import { Router } from 'express'
 import {
   getGoogleUrl,
   googleCallback,
+  setUsernameController,
   register,
   passwordLogin,
   verify2FALoginController,
@@ -20,6 +21,7 @@ const router = Router()
 
 router.get('/google/url', getGoogleUrl)
 router.post('/google/callback', googleCallback)
+router.post('/set-username', setUsernameController)
 router.post('/register', register)
 router.post('/login', passwordLogin)
 router.post('/2fa/login', verify2FALoginController)
