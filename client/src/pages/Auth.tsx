@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Navigate, useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import {
@@ -69,18 +69,22 @@ export default function Auth() {
   const [resetConfirmPassword, setResetConfirmPassword] = useState('')
 
   const oauthCode = searchParams.get('code')
+  const hasHandledOAuthRef = useRef(false)
 
   useEffect(() => {
-    if (oauthCode && !isSignedIn && !mfaState && !googleChallengeToken) {
+    if (oauthCode && !isSignedIn && !mfaState && !googleChallengeToken && !hasHandledOAuthRef.current) {
+      hasHandledOAuthRef.current = true
       setIsExchangingCode(true)
       setErrorMessage(null)
       handleOAuthCallback(oauthCode)
         .then((res) => {
+          window.history.replaceState({}, '', window.location.pathname)
           if (res.needsUsername && res.challengeToken) {
             setGoogleChallengeToken(res.challengeToken)
             setMode('choose_username')
             setIsExchangingCode(false)
           } else if (res.mfaRequired && res.challengeToken) {
+            setMode('signin')
             setMfaState({
               challengeToken: res.challengeToken,
               isSetup: !!res.mfaSetupRequired,
@@ -95,6 +99,7 @@ export default function Auth() {
           }
         })
         .catch((err) => {
+          hasHandledOAuthRef.current = false
           const msg = err instanceof Error ? err.message : String(err)
           setErrorMessage(`Google authentication failed: ${msg}`)
           setIsExchangingCode(false)
@@ -221,6 +226,7 @@ export default function Auth() {
     try {
       const res = await setUsername(googleChallengeToken, chosenGoogleUsername)
       setGoogleChallengeToken(null)
+      setMode('signin')
       if (res.mfaRequired && res.challengeToken) {
         setMfaState({
           challengeToken: res.challengeToken,
@@ -458,109 +464,6 @@ export default function Auth() {
                 Authenticating with Google...
               </div>
             </div>
-          ) : mode === 'choose_username' ? (
-            /* Choose Username Screen (Google Login Redirect) */
-            <form onSubmit={handleSetUsernameSubmit}>
-              {errorMessage && (
-                <div
-                  style={{
-                    marginBottom: 16,
-                    padding: '10px 14px',
-                    borderRadius: 8,
-                    background: 'var(--status-danger-bg)',
-                    border: '1px solid rgba(244, 63, 94, 0.3)',
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: 10,
-                  }}
-                >
-                  <AlertCircle size={16} color="var(--status-danger)" style={{ marginTop: 2, flexShrink: 0 }} />
-                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--status-danger)', lineHeight: 1.4 }}>
-                    {errorMessage}
-                  </div>
-                </div>
-              )}
-
-              <div style={{ marginBottom: 20 }}>
-                <label
-                  htmlFor="google-username"
-                  style={{
-                    display: 'block',
-                    fontFamily: 'var(--font-sans)',
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: 'var(--text-secondary)',
-                    marginBottom: 6,
-                  }}
-                >
-                  Username (Unique to you)
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <input
-                    id="google-username"
-                    type="text"
-                    value={chosenGoogleUsername}
-                    onChange={(e) => setChosenGoogleUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''))}
-                    placeholder="your_unique_username"
-                    required
-                    minLength={3}
-                    maxLength={30}
-                    autoFocus
-                    style={{
-                      width: '100%',
-                      padding: '10px 14px 10px 36px',
-                      borderRadius: 8,
-                      border: '1px solid var(--border-default)',
-                      background: 'var(--bg-elevated)',
-                      color: 'var(--text-primary)',
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: 13,
-                      outline: 'none',
-                    }}
-                  />
-                  <span
-                    style={{
-                      position: 'absolute',
-                      left: 12,
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: 13,
-                      color: 'var(--text-muted)',
-                    }}
-                  >
-                    @
-                  </span>
-                </div>
-                <p style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
-                  Letters, numbers, underscores, and hyphens only (min 3 characters).
-                </p>
-              </div>
-
-              <button
-                type="submit"
-                disabled={isSubmitting || chosenGoogleUsername.length < 3}
-                style={{
-                  width: '100%',
-                  padding: '12px 18px',
-                  borderRadius: 8,
-                  border: 'none',
-                  background: 'var(--brand-primary)',
-                  color: '#ffffff',
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 14,
-                  fontWeight: 600,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8,
-                  cursor: isSubmitting || chosenGoogleUsername.length < 3 ? 'not-allowed' : 'pointer',
-                  opacity: isSubmitting || chosenGoogleUsername.length < 3 ? 0.6 : 1,
-                }}
-              >
-                {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <span>Set Username & Continue</span>}
-              </button>
-            </form>
           ) : mfaState ? (
             /* Mandatory 2FA Flow (Setup or Verification) */
             <form onSubmit={handle2FASubmit}>
@@ -830,6 +733,109 @@ export default function Auth() {
               >
                 <ArrowLeft size={14} />
                 <span>Back to sign in</span>
+              </button>
+            </form>
+          ) : mode === 'choose_username' ? (
+            /* Choose Username Screen (Google Login Redirect) */
+            <form onSubmit={handleSetUsernameSubmit}>
+              {errorMessage && (
+                <div
+                  style={{
+                    marginBottom: 16,
+                    padding: '10px 14px',
+                    borderRadius: 8,
+                    background: 'var(--status-danger-bg)',
+                    border: '1px solid rgba(244, 63, 94, 0.3)',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 10,
+                  }}
+                >
+                  <AlertCircle size={16} color="var(--status-danger)" style={{ marginTop: 2, flexShrink: 0 }} />
+                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--status-danger)', lineHeight: 1.4 }}>
+                    {errorMessage}
+                  </div>
+                </div>
+              )}
+
+              <div style={{ marginBottom: 20 }}>
+                <label
+                  htmlFor="google-username"
+                  style={{
+                    display: 'block',
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: 'var(--text-secondary)',
+                    marginBottom: 6,
+                  }}
+                >
+                  Username (Unique to you)
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    id="google-username"
+                    type="text"
+                    value={chosenGoogleUsername}
+                    onChange={(e) => setChosenGoogleUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''))}
+                    placeholder="your_unique_username"
+                    required
+                    minLength={3}
+                    maxLength={30}
+                    autoFocus
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px 10px 36px',
+                      borderRadius: 8,
+                      border: '1px solid var(--border-default)',
+                      background: 'var(--bg-elevated)',
+                      color: 'var(--text-primary)',
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 13,
+                      outline: 'none',
+                    }}
+                  />
+                  <span
+                    style={{
+                      position: 'absolute',
+                      left: 12,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 13,
+                      color: 'var(--text-muted)',
+                    }}
+                  >
+                    @
+                  </span>
+                </div>
+                <p style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
+                  Letters, numbers, underscores, and hyphens only (min 3 characters).
+                </p>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSubmitting || chosenGoogleUsername.length < 3}
+                style={{
+                  width: '100%',
+                  padding: '12px 18px',
+                  borderRadius: 8,
+                  border: 'none',
+                  background: 'var(--brand-primary)',
+                  color: '#ffffff',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  cursor: isSubmitting || chosenGoogleUsername.length < 3 ? 'not-allowed' : 'pointer',
+                  opacity: isSubmitting || chosenGoogleUsername.length < 3 ? 0.6 : 1,
+                }}
+              >
+                {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <span>Set Username & Continue</span>}
               </button>
             </form>
           ) : mode === 'forgot' ? (
