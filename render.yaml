@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: sql-compass-api
+    env: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: CLIENT_ORIGIN
+        sync: false
+      - key: CLERK_SECRET_KEY
+        sync: false
+      - key: CLERK_PUBLISHABLE_KEY
+        sync: false
+      - key: MONGO_URI
+        sync: false
+      - key: NEON_DATABASE_URL
+        sync: false
+      - key: SANDBOX_RO_URL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: HINT_GRAPH
+        value: "true"
+      - key: HINT_CACHE_TTL_SECONDS
+        value: "600"
