@@ -10,3 +10,13 @@ export function getAuthCookieOptions() {
     path: '/',
   }
 }
+
+export function getClearCookieOptions() {
+  const isProduction = process.env.NODE_ENV === 'production'
+  return {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',
+    path: '/',
+  }
+}

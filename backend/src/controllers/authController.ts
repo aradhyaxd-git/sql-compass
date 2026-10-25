@@ -16,7 +16,7 @@ import {
   completePasswordReset,
 } from '../services/passwordResetService.js'
 
-import { getAuthCookieOptions, AUTH_COOKIE_NAME } from '../utils/cookieUtils.js'
+import { getAuthCookieOptions, getClearCookieOptions, AUTH_COOKIE_NAME } from '../utils/cookieUtils.js'
 import User from '../models/User.js'
 import { logger } from '../utils/logger.js'
 
@@ -283,6 +283,6 @@ export const getCurrentUser = async (req: Request, res: Response): Promise<void>
 }
 
 export const logout = (_req: Request, res: Response): void => {
-  res.clearCookie(AUTH_COOKIE_NAME, getAuthCookieOptions())
+  res.clearCookie(AUTH_COOKIE_NAME, getClearCookieOptions())
   res.status(200).json({ success: true, message: 'Logged out successfully' })
 }

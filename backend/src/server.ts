@@ -147,6 +147,7 @@ const startServer = async (): Promise<void> => {
   await connectPersistenceDB()
 
   const server = app.listen(PORT, () => {
+    console.log(`[INFO] Server started and listening on port ${PORT}`)
     logger.info(`Server started and listening on port ${PORT}`, {
       event: 'server_start',
       port: PORT,

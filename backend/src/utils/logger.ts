@@ -43,13 +43,23 @@ const consoleHumanFormat = printf((info) => {
   return `${time} [${level.toUpperCase()}] ${reqId}${user}${evt}: ${message}${lat}${metaStr}`
 })
 
+const VALID_LOG_LEVELS = new Set(['error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly'])
+
+function getLogLevel(): string {
+  const envLevel = process.env.LOG_LEVEL?.toLowerCase().trim()
+  if (envLevel && VALID_LOG_LEVELS.has(envLevel)) {
+    return envLevel
+  }
+  return isProduction ? 'info' : 'debug'
+}
+
 export const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || (isProduction ? 'info' : 'debug'),
+  level: getLogLevel(),
   format: combine(
     timestamp({ format: 'YYYY-MM-DDTHH:mm:ss.SSSZ' }),
     errors({ stack: true }),
     distributedTraceFormat(),
-    isProduction ? json() : consoleHumanFormat
+    process.env.LOG_FORMAT === 'json' ? json() : consoleHumanFormat
   ),
   defaultMeta: {
     service: 'sql-compass-backend',
