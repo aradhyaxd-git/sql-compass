@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { C, F, Icon, Pulse, TiltCard, Show } from './landingTokens'
+import { isMacPlatform } from '@/utils/platform'
 
 const TERM_LINES = [
   { t: 'sys', v: '[ SQL COMPASS v1.0 ] — MISSION CONTROL INITIALIZING' },
@@ -130,7 +131,9 @@ export function HeroTerminal() {
               mission_terminal.sql
             </span>
           </div>
-          <span style={{ fontFamily: F.ui, fontSize: 10, color: C.t4 }}>⌘↵ run</span>
+          <span style={{ fontFamily: F.ui, fontSize: 10, color: C.t4 }}>
+            {isMacPlatform() ? '⌘↵' : 'Ctrl+↵'} run
+          </span>
         </div>
 
         <div

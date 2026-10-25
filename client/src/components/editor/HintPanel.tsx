@@ -180,7 +180,7 @@ export default function HintPanel({ hintData, hint, isLoading, onRequest, onClea
             }}
           >
             <Zap size={14} color="var(--brand-primary)" className="animate-pulse" />
-            <span>Evaluating student AST and synthesizing guidance...</span>
+            <span>Analyzing your query and generating step-by-step guidance...</span>
           </motion.div>
         )}
 

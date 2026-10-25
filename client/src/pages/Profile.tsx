@@ -224,7 +224,7 @@ export default function Profile() {
                       margin: 0,
                     }}
                   >
-                    {user?.fullName ?? user?.primaryEmailAddress?.emailAddress ?? 'Developer Profile'}
+                    {user?.fullName ?? user?.primaryEmailAddress?.emailAddress ?? 'Learner Profile'}
                   </h1>
                   {user?.username && (
                     <span

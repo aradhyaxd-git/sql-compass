@@ -15,7 +15,7 @@ const FEATURES = [
     icon: Icon.Bolt,
     label: 'LIVE EXECUTION',
     title: 'Results in milliseconds.',
-    desc: 'Hit ⌘↵. Your query executes. Structured table output, execution time, row count. Errors pinpoint the exact line.',
+    desc: 'Hit Run or your keyboard shortcut. Your query executes instantly. Structured table output, execution time, row count. Errors pinpoint the exact line.',
     wide: false,
     accent: C.signal,
   },

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Play, RotateCcw, Wand2 } from 'lucide-react'
 import type { Difficulty } from '@/types/assignment.types'
+import { getRunShortcut } from '@/utils/platform'
 
 const DIFFICULTY_LABELS: Record<Difficulty, { label: string; color: string; bg: string; border: string }> = {
   easy: {
@@ -218,7 +219,7 @@ export const AttemptToolbar: React.FC<AttemptToolbarProps> = ({
                   fontFamily: 'var(--font-mono)',
                 }}
               >
-                Cmd+Enter
+                {getRunShortcut()}
               </kbd>
             </>
           )}

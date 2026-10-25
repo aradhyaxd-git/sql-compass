@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { CheckCircle2, AlertCircle, Play, Download, ChevronDown, ChevronUp, Cpu, Info } from 'lucide-react'
 import type { QueryState } from '@/types/query.types'
+import { getRunShortcut } from '@/utils/platform'
 
 interface Props {
   queryState: QueryState
@@ -63,7 +64,7 @@ function IdleState() {
         color: 'var(--text-secondary)',
         letterSpacing: '0.04em',
       }}>
-        Execute query (Cmd + Enter) to view results
+        Execute query ({getRunShortcut()}) to view results
       </span>
     </div>
   )

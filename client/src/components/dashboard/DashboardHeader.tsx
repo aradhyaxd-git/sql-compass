@@ -45,7 +45,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
           }}
         >
           <Sparkles size={12} />
-          <span>CURATED PRACTICE TRACK</span>
+          <span>INTERACTIVE PRACTICE TRACK</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <h1
@@ -84,11 +84,11 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
             marginTop: 6,
             marginBottom: 0,
             fontFamily: 'var(--font-sans)',
-            maxWidth: 600,
-            lineHeight: 1.5,
+            maxWidth: 620,
+            lineHeight: 1.55,
           }}
         >
-          Real PostgreSQL schema execution, automated AST security enforcement, and progressive AI hints.
+          Master real-world SQL with hands-on practice, live database execution, and intelligent guided hints.
         </p>
       </div>
 

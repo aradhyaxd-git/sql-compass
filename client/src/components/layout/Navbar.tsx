@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Sun, Moon, Command, LogOut, ChevronDown } from 'lucide-react'
+import { Sun, Moon, Keyboard, LogOut, ChevronDown } from 'lucide-react'
 import { useTheme } from '@/context/ThemeContext'
 import { useAuth } from '@/context/AuthContext'
 import ShortcutsModal from '@/components/ui/ShortcutsModal'
 import UserAvatar from '@/components/ui/UserAvatar'
+import { isMacPlatform } from '@/utils/platform'
 
 function SandboxStatusDot() {
   return (
@@ -19,7 +20,7 @@ function SandboxStatusDot() {
         <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--status-online)', position: 'relative' }} />
       </span>
       <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
-        PostgreSQL 16 Sandbox
+        Live SQL Engine
       </span>
     </span>
   )
@@ -122,7 +123,7 @@ export default function Navbar() {
 
         <button
           onClick={() => setShowShortcuts(true)}
-          title="Keyboard shortcuts (?)"
+          title={`Keyboard shortcuts (? or ${isMacPlatform() ? 'Cmd' : 'Ctrl'})`}
           aria-label="Keyboard shortcuts"
           style={{
             display: 'flex',
@@ -146,7 +147,7 @@ export default function Navbar() {
             e.currentTarget.style.borderColor = 'var(--border-default)'
           }}
         >
-          <Command size={14} />
+          <Keyboard size={15} />
         </button>
 
         <button

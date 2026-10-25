@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Database, ShieldCheck, Cpu } from 'lucide-react'
+import { getRunShortcut } from '@/utils/platform'
 
 export default function Footer() {
   const currentYear = new Date().getFullYear()
@@ -93,12 +94,12 @@ export default function Footer() {
             textTransform: 'uppercase',
             marginBottom: 14,
           }}>
-            Sandbox Guardrails
+            Platform Security
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13, color: 'var(--text-secondary)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <ShieldCheck size={14} color="var(--status-online)" />
-              <span>Read-Only AST Sanitizer</span>
+              <span>Protected Sandbox Environment</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <Database size={14} color="var(--brand-primary)" />
@@ -106,7 +107,7 @@ export default function Footer() {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <Cpu size={14} color="var(--accent-cyan)" />
-              <span>Multi-Tier Hint Agent</span>
+              <span>Intelligent Hint Assistant</span>
             </div>
           </div>
         </div>
@@ -125,7 +126,7 @@ export default function Footer() {
             Shortcuts
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12, color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: 200 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: 220 }}>
               <span>Execute Query</span>
               <kbd style={{
                 background: 'var(--bg-subtle)',
@@ -134,7 +135,7 @@ export default function Footer() {
                 padding: '2px 6px',
                 fontSize: 10,
               }}>
-                Cmd + Enter
+                {getRunShortcut()}
               </kbd>
             </div>
           </div>
@@ -160,7 +161,7 @@ export default function Footer() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--font-mono)', fontSize: 11 }}>
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--status-online)', display: 'inline-block' }} />
-          <span>PostgreSQL Sandbox Ready</span>
+          <span>Live SQL Engine Ready</span>
         </div>
       </div>
     </footer>
