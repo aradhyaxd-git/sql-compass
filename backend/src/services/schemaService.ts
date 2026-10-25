@@ -35,11 +35,13 @@ export const getSchemaForTables = async (
         continue
       }
 
-      const columns: ColumnInfo[] = columnQuery.rows.map((row) => ({
-        name: row.column_name,
-        type: row.data_type,
-        nullable: row.is_nullable === 'YES',
-      }))
+      const columns: ColumnInfo[] = columnQuery.rows.map(
+        (row: { column_name: string; data_type: string; is_nullable: string }) => ({
+          name: row.column_name,
+          type: row.data_type,
+          nullable: row.is_nullable === 'YES',
+        })
+      )
 
       const escapedIdentifier = `"${tableName.replace(/"/g, '""')}"`
       const sampleQuery = await client.query(
