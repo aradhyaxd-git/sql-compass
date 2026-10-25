@@ -25,7 +25,7 @@ export const getGoogleUrl = (req: Request, res: Response): void => {
     const redirectUri =
       typeof req.query.redirectUri === 'string' && req.query.redirectUri.trim()
         ? req.query.redirectUri.trim()
-        : `${process.env.CLIENT_ORIGIN || 'http://localhost:5173'}/auth`
+        : `${(process.env.CLIENT_ORIGIN || 'http://localhost:5173').replace(/\/+$/, '')}/auth`
 
     const url = getGoogleAuthorizationUrl(redirectUri)
     res.status(200).json({ success: true, data: { url } })
@@ -48,7 +48,7 @@ export const googleCallback = async (req: Request, res: Response): Promise<void>
     const effectiveRedirectUri =
       typeof redirectUri === 'string' && redirectUri.trim()
         ? redirectUri.trim()
-        : `${process.env.CLIENT_ORIGIN || 'http://localhost:5173'}/auth`
+        : `${(process.env.CLIENT_ORIGIN || 'http://localhost:5173').replace(/\/+$/, '')}/auth`
 
     const result = await exchangeGoogleCode(code, effectiveRedirectUri)
     res.status(200).json({ success: true, ...result })

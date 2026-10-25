@@ -22,8 +22,13 @@ app.set('trust proxy', 1)
 
 const isProduction = process.env.NODE_ENV === 'production'
 
+const configuredOrigins = (process.env.CLIENT_ORIGIN || '')
+  .split(',')
+  .map((s) => s.trim().replace(/\/+$/, ''))
+  .filter(Boolean)
+
 const allowedOrigins = [
-  process.env.CLIENT_ORIGIN,
+  ...configuredOrigins,
   !isProduction && 'http://localhost:5173',
   !isProduction && 'http://127.0.0.1:5173',
   !isProduction && 'http://localhost:5174',
@@ -37,13 +42,19 @@ app.use(
         callback(null, true)
         return
       }
-      if (allowedOrigins.includes(origin)) {
+      const normalized = origin.replace(/\/+$/, '')
+      if (allowedOrigins.includes(normalized)) {
         callback(null, true)
         return
       }
-      if (!isProduction && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
-        callback(null, true)
-        return
+      try {
+        const host = new URL(origin).hostname
+        if (host === 'localhost' || host === '127.0.0.1' || host.endsWith('.vercel.app')) {
+          callback(null, true)
+          return
+        }
+      } catch {
+        // invalid URL format
       }
       callback(null, false)
     },
