@@ -197,7 +197,8 @@ const startServer = async (): Promise<void> => {
     })
   }
 
-  startServer().catch((err) => {
-    logger.error('Server startup failed', { event: 'startup_failure', error: String(err) })
-    process.exit(1)
-  })
+startServer().catch((err) => {
+  console.error('[FATAL] Server startup failed:', err)
+  logger.error('Server startup failed', { event: 'startup_failure', error: String(err) })
+  setTimeout(() => process.exit(1), 500)
+})
