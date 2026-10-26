@@ -53,6 +53,10 @@ export async function verifyGoogleAuthorizationCode(
     throw new Error('Unable to extract user information from Google id_token')
   }
 
+  if (!payload.email_verified) {
+    throw new Error('Google account email is not verified')
+  }
+
   return {
     email: payload.email.toLowerCase().trim(),
     name: payload.name || payload.email.split('@')[0],

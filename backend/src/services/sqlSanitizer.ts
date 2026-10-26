@@ -56,6 +56,17 @@ const DANGEROUS_TABLES = new Set([
   'pg_stat_database',
   'pg_user',
   'pg_roles',
+  'pg_settings',
+  'pg_database',
+  'pg_stat_statements',
+  'pg_tables',
+  'pg_views',
+  'pg_matviews',
+  'pg_class',
+  'pg_proc',
+  'pg_namespace',
+  'pg_type',
+  'pg_attribute',
 ])
 
 const MAX_QUERY_LENGTH = 4000

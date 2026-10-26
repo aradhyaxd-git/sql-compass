@@ -47,14 +47,16 @@ app.use(
         callback(null, true)
         return
       }
-      try {
-        const host = new URL(origin).hostname
-        if (host === 'localhost' || host === '127.0.0.1' || host.endsWith('.vercel.app')) {
-          callback(null, true)
-          return
+      if (!isProduction) {
+        try {
+          const host = new URL(origin).hostname
+          if (host === 'localhost' || host === '127.0.0.1') {
+            callback(null, true)
+            return
+          }
+        } catch {
+          // invalid URL format
         }
-      } catch {
-        // invalid URL format
       }
       callback(null, false)
     },

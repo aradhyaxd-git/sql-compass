@@ -30,9 +30,10 @@ async function runAuthSecurityTests() {
   assert.strictEqual(decoded.email, dummyUser.email)
   assert.strictEqual(decoded.username, dummyUser.username)
   assert.strictEqual(decoded.role, dummyUser.role)
+  assert.strictEqual(decoded.type, 'session')
   console.log('Session JWT signing and verification passed.')
 
-  // 2. 2FA Challenge Token Expiry and Type Verification
+  // 2. 2FA Challenge Token Expiry and Type Verification (Bi-directional)
   const challengeToken = generate2FAChallengeToken(dummyUser._id)
   const challengeDecoded = verify2FAChallengeToken(challengeToken)
   assert.strictEqual(challengeDecoded.sub, dummyUser._id)
@@ -40,7 +41,12 @@ async function runAuthSecurityTests() {
   assert.throws(() => {
     verify2FAChallengeToken(sessionToken)
   }, /Invalid challenge token/)
-  console.log('2FA Challenge token type isolation passed.')
+
+  // Reverse direction: verify that challengeToken cannot masquerade as a sessionToken
+  assert.throws(() => {
+    verifySessionToken(challengeToken)
+  }, /Invalid token type: session required/)
+  console.log('2FA Challenge token type isolation passed (bi-directional verified).')
 
   // 3. TOTP Generation and Verification with otplib
   const secret = generateSecret()
@@ -70,7 +76,7 @@ async function runAuthSecurityTests() {
   }, /already used/)
   console.log('Anti-replay TOTP enforcement passed.')
 
-  // 5. Password Reset Challenge Token Verification and Isolation
+  // 5. Password Reset Challenge Token Verification and Isolation (Bi-directional)
   const resetToken = generateResetChallengeToken(dummyUser._id, dummyUser.username)
   const resetDecoded = verifyResetChallengeToken(resetToken)
   assert.strictEqual(resetDecoded.sub, dummyUser._id)
@@ -84,7 +90,17 @@ async function runAuthSecurityTests() {
     verifyResetChallengeToken(challengeToken)
   }, /Invalid password reset challenge token/)
 
-  console.log('Password reset challenge token verification and isolation passed.')
+  // Reverse direction: verify that resetToken cannot masquerade as a sessionToken
+  assert.throws(() => {
+    verifySessionToken(resetToken)
+  }, /Invalid token type: session required/)
+
+  // Cross-token direction: verify that resetToken cannot masquerade as a 2fa challengeToken
+  assert.throws(() => {
+    verify2FAChallengeToken(resetToken)
+  }, /Invalid challenge token/)
+
+  console.log('Password reset challenge token verification and isolation passed (bi-directional verified).')
 
   console.log('[SUCCESS] All Auth Security test suites passed cleanly.')
 }

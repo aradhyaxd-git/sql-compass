@@ -25,11 +25,10 @@ export const ErrorClassEnum = z.enum([
 ])
 
 function safeReplace(template: string, replacements: Record<string, string>): string {
-  let result = template
-  for (const [key, val] of Object.entries(replacements)) {
-    result = result.split(key).join(val)
-  }
-  return result
+  const keys = Object.keys(replacements)
+  if (keys.length === 0) return template
+  const pattern = new RegExp(keys.map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'g')
+  return template.replace(pattern, (matched) => replacements[matched] ?? matched)
 }
 
 export const HintState = Annotation.Root({

@@ -208,15 +208,12 @@ export async function registerWithPassword(
   const salt = await bcrypt.genSalt(12)
   const passwordHash = await bcrypt.hash(password, salt)
 
-  const adminEmail = (process.env.ADMIN_EMAIL || '').toLowerCase().trim()
-  const isAdmin = adminEmail && email === adminEmail
-
   const user = await User.create({
     name,
     username: rawUsername,
     email,
     passwordHash,
-    role: isAdmin ? 'admin' : 'user',
+    role: 'user',
     twoFactorEnabled: false,
   })
 
